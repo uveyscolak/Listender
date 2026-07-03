@@ -66,5 +66,7 @@ Sorulamadan varsayılanlar (sonradan teyit edilebilir):
 
 > Append-only. Yön/kapsam değiştiğinde: `[YYYY-AA-GG] ne değişti — bkz. Kararlar [tarih]`. Gövde sessizce yeniden yazılmaz.
 
+- [2026-07-03] Kapsam genişletildi: "imzalı .app paketleme / py2app" (v1'de Kapsam Dışı → v2 adayıydı) bilinçli olarak sonraki oturumun hedefi yapıldı — indirilebilir/dağıtılabilir uygulama. Kullanıcı isteği. Mini-PRD döngüsü sonraki oturumda işlenecek; ayrıntılı kabul kriterleri o zaman `## Ek — paketleme` olarak yazılacak.
+
 ---
 [[Context]] — ana hub

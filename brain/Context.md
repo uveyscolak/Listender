@@ -1,6 +1,6 @@
 # WISPHERKLON — Context
 
-**Durum:** ✅ v1 TAMAM — PRD'nin TÜM kabul kriterleri test edildi ve geçti (2026-07-03)  
+**Durum:** ✅ v1 TAMAM — sıradaki hedef: indirilebilir/paketlenmiş uygulama (sonraki oturum)  
 **Son güncelleme:** 2026-07-03 · **Son lint:** 2026-07-03  
 **Repo:** https://github.com/uveyscolak/Wispherklon · **Stack:** Python 3.14 (pywhispercpp, sounddevice, pynput, rumps, pyobjc) + opsiyonel Ollama · **Deploy:** lokal macOS menü barı uygulaması (Mac mini, M4, 16 GB)
 
@@ -16,9 +16,9 @@
 
 ## Sıradaki Adım
 
-1. **Günlük kullanım gözlemi** — stabilite, farklı uygulamalarda enjeksiyon davranışı, izin kalıcılığı (birkaç yeniden başlatma sonrası).
-2. **LLM kalitesi (opsiyonel, v2):** 8B+ model dene; 4B sınıfı yetersiz kanıtlandı.
-3. v2 adayları PRD Kapsam Dışı'nda duruyor (toggle mod, streaming, .app paketleme, ayarlanabilir kısayol).
+1. **▶ ÖNCELİK — sonraki oturum: indirilebilir/paketlenmiş uygulama.** Kullanıcı v1'deki sabit launcher script yerine artık dağıtılabilir bir uygulama istiyor (2026-07-03). Bu, PRD'de kapsam dışı bırakılan ".app paketleme"nin bilinçli olarak v2'ye alınması → **mini-PRD döngüsü işlenecek** (doğrudan koda başlama; py2app mı / imzalı+notarize .app mı, dağıtım şekli, paketlemede izin stratejisinin korunması `AskUserQuestion` ile netleştirilecek). Dikkat: v1 izin tuzağı (TCC izni çağıran binary'ye bağlanır — bkz. Kararlar [2026-07-03] izin stratejisi) paketlemede yeniden gündeme gelir.
+2. **Günlük kullanım gözlemi** — stabilite, farklı uygulamalarda enjeksiyon, izin kalıcılığı.
+3. **LLM kalitesi (opsiyonel):** 8B+ model dene; 4B sınıfı yetersiz kanıtlandı.
 
 ## Bitiş Çizgisi
 
