@@ -10,6 +10,7 @@ import time
 
 import rumps
 from pynput import keyboard
+from PyObjCTools import AppHelper
 
 from . import cleaner, config, injector
 from .recorder import Recorder
@@ -72,7 +73,7 @@ class WispherklonApp(rumps.App):
             self._update_idle_state()
         except Exception as e:
             self._set_status(f"Model hatası: {e}")
-            self.title = "⚠️"
+            self._set_title("⚠️")
 
     def _ready(self) -> bool:
         """Bas-konuş için hazır mı: model yüklü ve mikrofon açık."""
@@ -83,13 +84,13 @@ class WispherklonApp(rumps.App):
         if self._recording:
             return
         if not self._model_loaded:
-            self.title = ICON_LOADING
+            self._set_title(ICON_LOADING)
             self._set_status("Model yükleniyor…")
         elif not self._mic_ok:
-            self.title = ICON_NO_MIC
+            self._set_title(ICON_NO_MIC)
             self._set_status("Mikrofon yok — bağlanınca otomatik hazır olur")
         else:
-            self.title = ICON_IDLE
+            self._set_title(ICON_IDLE)
             self._set_status("Hazır — sağ ⌥ bas-konuş")
 
     # --- Mikrofon yoklama (hot-plug) ---
@@ -126,10 +127,22 @@ class WispherklonApp(rumps.App):
                 self._mic_ok = False
 
     # --- Durum/UI (ana thread'e köprü) ---
+    # AppKit (menü, ikon) SADECE ana thread'den güncellenebilir. Worker/pynput
+    # thread'inden doğrudan atama menü açıkken SIGTRAP ile çökertir (canlıda
+    # yaşandı: NSMenuItem.setTitle @ Thread _process — 2026-07-03 crash raporu).
+    # Bu yüzden her UI dokunuşu AppHelper.callAfter ile ana thread'e taşınır.
 
     def _set_status(self, msg: str):
-        # rumps menü güncellemesi ana thread'de güvenli; kısa metin ataması yeterince güvenli.
+        AppHelper.callAfter(self._set_status_main, msg)
+
+    def _set_status_main(self, msg: str):
         self.status_item.title = msg
+
+    def _set_title(self, icon: str):
+        AppHelper.callAfter(self._set_title_main, icon)
+
+    def _set_title_main(self, icon: str):
+        self.title = icon
 
     def _refresh_llm_check(self):
         available = cleaner.ollama_available()
@@ -179,7 +192,7 @@ class WispherklonApp(rumps.App):
             self._recording = True
         self._record_started_at = time.monotonic()
         self.recorder.start_recording(on_limit=self._auto_stop)
-        self.title = ICON_RECORDING
+        self._set_title(ICON_RECORDING)
         self._set_status("Kayıt… (bırakınca yazılır)")
 
     def _auto_stop(self):
@@ -193,11 +206,11 @@ class WispherklonApp(rumps.App):
             self._recording = False
         audio = self.recorder.stop_recording()
         duration = time.monotonic() - self._record_started_at
-        self.title = ICON_PROCESSING
+        self._set_title(ICON_PROCESSING)
 
         # Halüsinasyon filtresi: çok kısa basmalarda hiçbir şey yapma.
         if duration < config.MIN_RECORD_SEC or len(audio) == 0:
-            self.title = self._idle_icon()
+            self._set_title(self._idle_icon())
             self._set_status("Çok kısa — atlandı")
             return
 
@@ -250,7 +263,7 @@ class WispherklonApp(rumps.App):
 
     def _done(self, msg: str):
         self._set_status(msg)
-        self.title = self._idle_icon()
+        self._set_title(self._idle_icon())
 
 
 def main():

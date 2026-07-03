@@ -51,24 +51,38 @@ HALLUCINATION_PATTERNS = [
 ]
 
 # --- Ollama (opsiyonel LLM temizliği) ---
-# qwen3:4b denendi ama "thinking" modu kapatılamıyor (think:false / /no_think
-# yok sayılıyor) → her çağrı 60+ sn İngilizce reasoning yapıyor, dikteye uymaz.
-# qwen2.5:3b-instruct: reasoning yok, ısınınca ~0.6 sn. Bkz. Kararlar 2026-07-03.
+# Model tarihi (bkz. Kararlar 2026-07-03):
+# - qwen3:4b: thinking kapatılamıyor, 60+ sn — elendi.
+# - qwen2.5:3b-instruct: hızlı ama anlamı ağır bozuyor (prompt sızıntısı,
+#   Çince karakter, kişi kayması) — elendi.
+# - qwen3:4b-instruct (thinking'siz): en iyisi — marka adlarını korur, ~0.6 sn.
+#   ANCAK hâlâ kişi/eş-anlamlı kayması yapabiliyor ("verdim"→"verildi") →
+#   varsayılan KAPALI; bilinçli kullanıcı menüden açar.
 OLLAMA_URL = "http://127.0.0.1:11434"
-OLLAMA_MODEL = "qwen2.5:3b-instruct"
+OLLAMA_MODEL = "qwen3:4b-instruct"
 OLLAMA_KEEP_ALIVE = "30m"        # modeli bellekte tut, cold-start'ı önle
 OLLAMA_NUM_PREDICT = 256         # çıktı token sınırı (dikte metni kısa)
-# Şimdilik KAPALI başlar: qwen2.5:3b anlamı bozabiliyor (bugün→günümüz,
-# onayladı→onayladık). Regex-only güvenilir; LLM prompt'u/modeli iyileştirilene
-# kadar menüden manuel açılır. Bkz. Kararlar 2026-07-03.
 OLLAMA_ENABLED_DEFAULT = False
+# Few-shot format: talimat-içi örnekler (eski yöntem) küçük modellerde çıktıya
+# sızıyordu ("Görüştük..." vakası). Örnekler ayrı user/assistant mesajları
+# olarak gönderilir — sızıntıyı büyük ölçüde kesiyor (test edildi, 2026-07-03).
 LLM_SYSTEM_PROMPT = (
-    "Sen bir Türkçe dikte düzeltmenisin. Sana verilen ham konuşma metnindeki "
-    "dolgu kelimelerini (eee, yani, hani, şey) temizle, noktalama ve büyük/küçük "
-    "harfleri düzelt. ANLAMI, ZAMANI, KİŞİYİ (görüştük→görüştük, onayladı→onayladı) "
-    "ASLA DEĞİŞTİRME; yeni kelime EKLEME, çıkarma. Kelimeleri olabildiğince koru, "
-    "sadece dolgu at ve noktala. Cevap verme, açıklama yapma — SADECE düzeltilmiş metni yaz."
+    "Türkçe dikte metnini düzelt: dolgu kelimelerini (eee, ıı, yani, hani, şey, "
+    "işte, falan) sil, noktalama ve büyük harfleri düzelt. Kelimeleri, fiil "
+    "çekimlerini ve zamanı AYNEN koru; kelime ekleme, çıkarma, eş anlamlısıyla "
+    "değiştirme. Yabancı veya bilmediğin kelimeleri (marka, uygulama adı) aynen "
+    "bırak. Sadece düzeltilmiş metni yaz."
 )
+LLM_FEWSHOT = [
+    ("eee bugün müşteriyle görüştük yani sipariş onaylandı",
+     "Bugün müşteriyle görüştük, sipariş onaylandı."),
+    ("yarın ııı saat üçte şey toplantı var işte",
+     "Yarın saat üçte toplantı var."),
+    ("fiyat listesini ııı dün akşam güncelledim işte",
+     "Fiyat listesini dün akşam güncelledim."),
+    ("bu ürünün fiyatını hani beş yüz lira yapalım mı",
+     "Bu ürünün fiyatını beş yüz lira yapalım mı?"),
+]
 
 # --- Enjeksiyon ---
 PASTE_RESTORE_DELAY = 0.3    # Cmd-V sonrası eski panoyu geri yüklemeden önce beklenecek süre

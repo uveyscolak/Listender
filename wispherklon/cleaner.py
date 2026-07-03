@@ -87,16 +87,20 @@ def ollama_clean(text: str, timeout: float = 20.0) -> str:
     """Metni Ollama ile düzelt (chat endpoint). Hata olursa girdiyi aynen döndür."""
     if not text.strip():
         return text
+    # Few-shot: örnekler ayrı user/assistant çiftleri olarak gönderilir —
+    # talimat-içi örnek küçük modellerde çıktıya sızıyor (bkz. config).
+    messages = [{"role": "system", "content": config.LLM_SYSTEM_PROMPT}]
+    for sample_in, sample_out in config.LLM_FEWSHOT:
+        messages.append({"role": "user", "content": sample_in})
+        messages.append({"role": "assistant", "content": sample_out})
+    messages.append({"role": "user", "content": text})
     payload = {
         "model": config.OLLAMA_MODEL,
-        "messages": [
-            {"role": "system", "content": config.LLM_SYSTEM_PROMPT},
-            {"role": "user", "content": text},
-        ],
+        "messages": messages,
         "stream": False,
         "keep_alive": config.OLLAMA_KEEP_ALIVE,
         "options": {
-            "temperature": 0.2,
+            "temperature": 0.1,
             "num_predict": config.OLLAMA_NUM_PREDICT,
         },
     }

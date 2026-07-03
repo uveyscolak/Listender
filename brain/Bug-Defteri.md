@@ -5,6 +5,24 @@ Bilinen sorunlar, geçici çözümler, kök nedenler.
 
 ---
 
+## ✅ ÇÖZÜLDÜ (2026-07-03) — "Python kendi kendine kapandı" (SIGTRAP crash)
+
+**Belirti:** Kullanıcı LLM'i menüden açıp dikte test ederken uygulama "Python quit unexpectedly" ile kapandı.
+
+**Kök neden (crash raporundan):** Worker thread (`Thread _process`) `NSMenuItem.setTitle` çağırmış — macOS'ta AppKit UI'ına yalnızca ana thread dokunabilir; menü açıkken arka plan thread'inden durum yazısı güncellenince AppKit `EXC_BREAKPOINT/SIGTRAP` ile süreci öldürüyor. Koddaki "kısa metin ataması yeterince güvenli" varsayımı yanlıştı — çoğu zaman şans eseri çalışıyor, menü etkileşimi sırasında çöküyor.
+
+**Fix:** Tüm UI güncellemeleri (`_set_status`, menü barı ikonu → `_set_title`) `AppHelper.callAfter` ile ana thread'e taşındı. Worker, pynput dinleyicisi, timer — hepsi aynı köprüden geçer.
+
+**Doğrulama:** Menü açıkken + LLM açıkken canlı dikte → çökme yok; ardından 3 gözetimsiz uçtan uca test sorunsuz.
+
+---
+
+## ⚠️ BİLİNEN SINIRLAMA — LLM temizliği anlam bozabiliyor (varsayılan KAPALI)
+
+4B sınıfı yerel modeller dikte sadakati için yeterince güvenilir değil (detay: Kararlar [2026-07-03] LLM #2). Denenen: qwen3:4b (thinking kapanmıyor), qwen2.5:3b-instruct (prompt sızıntısı + Çince karakter + kişi kayması), qwen3:4b-instruct + few-shot (en iyisi; marka korur ama hâlâ "verdim→verildi" tarzı kayma yapabiliyor). Regex-only güvenilir varsayılan; LLM menüden bilinçli açılır. Gelecek adaylar: daha büyük model (8B+) veya bulut-dışı başka çözüm.
+
+---
+
 ## ✅ ÇÖZÜLDÜ (2026-07-03) — Mikrofondan uygulamaya ses gelmiyor + kayıt çok kısa
 
 **Kök neden (kanıtlı):** `_poll_mic` her 2 sn'de `refresh_devices()` → `sd._terminate()/_initialize()` çağırıyordu — **stream açıkken bile**. PortAudio aktif stream'in altından çekilince stream sessizce ölüyor: callback bir daha hiç gelmiyor. İzole repro testiyle kanıtlandı (refresh öncesi 2 sn'de 66 callback, sonrası 0).

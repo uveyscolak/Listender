@@ -42,6 +42,17 @@
 **Ne:** `_poll_mic` iki moda ayrıldı — mikrofon yokken `refresh_devices()` (cache tazele) + ara; mikrofon varken sadece callback-akışı sağlık kontrolü (`stream_alive()`). Ek olarak transkript öncesi peak normalizasyon + RMS sessizlik kapısı eklendi.
 **Neden — denedik olmadı (her poll'da refresh):** `sd._terminate()/_initialize()` aktif InputStream'i sessizce öldürüyor (repro: refresh öncesi 66 callback/2sn, sonrası 0). Uygulama açıldıktan 2 sn sonra mikrofon fiilen kopuyordu — canlı testteki "kayıt 0.5 sn + RMS≈0" bug'ının kök nedeni. Callback zaman damgası hem stream ölümünü hem fiziken çekilen mikrofonu tek mekanizmayla yakalar. Normalizasyon: kablosuz mikrofon kısık gelebiliyor (konuşma RMS ~0.009); sessizlik kapısı: verici kapalıyken normalize edilmiş gürültü whisper'da halüsinasyon üretir.
 
+## [2026-07-03] UI güncellemeleri yalnızca ana thread'den (AppHelper.callAfter)
+
+**Ne:** Tüm AppKit dokunuşları (`status_item.title`, menü barı ikonu) `AppHelper.callAfter` köprüsüyle ana thread'e taşındı (`_set_status`/`_set_title`).
+**Neden — denedik olmadı (doğrudan atama):** Worker thread'den `NSMenuItem.setTitle` menü açıkken SIGTRAP crash üretti (canlıda yaşandı, crash raporuyla teşhis edildi). macOS kuralı: UI'a sadece ana thread dokunur; "kısa atama güvenli" varsayımı yanlış.
+
+## [2026-07-03] LLM temizliği #2: qwen2.5:3b elendi → qwen3:4b-instruct + few-shot, varsayılan yine KAPALI
+
+**Ne:** Model qwen2.5:3b-instruct → `qwen3:4b-instruct` (thinking'siz 2507 sürümü, Ollama'dan indirildi). Prompt talimat-içi örneklerden **few-shot formatına** çevrildi (örnekler ayrı user/assistant mesajları, `config.LLM_FEWSHOT`). Varsayılan KAPALI kaldı.
+**Neden — denedik olmadı (qwen2.5:3b + prompt iyileştirme):** İki tur prompt mühendisliği yetmedi: sistem promptundaki örnekler çıktıya sızdı ("Görüştük..." vakası — canlı dikteye karıştı), Çince karakter üretti ("Ol拉馬"), kişi kaydırdı ("güncelledim→güncellendirdim"). Talimat-içi örnek küçük modellerde zehirli → few-shot şart.
+**qwen3:4b-instruct + few-shot (8 örnekli test):** Açık ara en iyi — dolgu temizliği doğru, marka adları korunur (CapCut, WhatsApp), ~0.6 sn. AMA hâlâ güvenilmez: "verdim→verildi" (kişi), "bulunmaktayız→bulunuyoruz" (eş anlamlı), "sipariş→sipariış" (yazım). **Sonuç: 4B sınıfı yerel model dikte sadakati için yetersiz** — LLM varsayılan KAPALI, bilinçli kullanıcı menüden açar; açarsa eldeki en iyi model bu. Gelecek: 8B+ model denenebilir.
+
 ## [2026-07-03] LLM temizlik modeli: qwen3:4b → qwen2.5:3b-instruct, varsayılan KAPALI
 
 **Ne:** LLM post-process modeli qwen3:4b'den qwen2.5:3b-instruct'a geçti; chat endpoint (`/api/chat`) + `keep_alive` kullanılıyor. LLM varsayılan olarak KAPALI başlıyor, menüden manuel açılır.
