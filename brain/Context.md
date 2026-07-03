@@ -1,22 +1,26 @@
 # WISPHERKLON — Context
 
-**Durum:** 🟢 çalışır (ilk sürüm kodlandı, mikrofonla uçtan uca test kaldı)  
+**Durum:** 🟠 canlı test yapıldı — parçalar çalışıyor, 1 açık bug (mikrofon sesi gelmiyor + kayıt kısa)  
 **Son güncelleme:** 2026-07-03 · **Son lint:** 2026-07-03  
 **Repo:** https://github.com/uveyscolak/Wispherklon · **Stack:** Python 3.14 (pywhispercpp, sounddevice, pynput, rumps, pyobjc) + opsiyonel Ollama · **Deploy:** lokal macOS menü barı uygulaması (Mac mini, M4, 16 GB)
 
 ## Şu An Nerede
 
-- **Uygulama kodlandı ve çalışıyor.** Tüm modüller yazıldı, importlar temiz, smoke test geçti (model yükleniyor→hazır, çökme yok). Kod: `wispherklon/` (config, transcriber, recorder, cleaner, injector, app) + `run.py` + `Wispherklon.command` launcher + README.
-- **Whisper zinciri kanıtlandı:** model diskte (1.5 GB, `~/Library/Application Support/VidScribe/models/ggml-large-v3-turbo.bin`), açılışta 5 sn'de yüklenir+ısınır, transkript ~1 sn (PRD ≤2 sn ✓).
-- **Regex temizliği test edildi, doğru çalışıyor** (dolgu at, cümle-başı yumuşak dolgu, halüsinasyon filtresi).
-- **Mikrofon hot-plug hazır:** bu makinede şu an mikrofon YOK; uygulama 🚫 gösterip bekliyor, mikrofon takılınca 2 sn içinde otomatik hazır olacak (bkz. Kararlar [2026-07-03]).
+- **Canlı test yapıldı (2026-07-03, "Wireless Microphone RX" bağlı).** Çoğu parça çalışıyor, tek açık bug var → detay [[Bug-Defteri]].
+- **✅ Enjeksiyon çalışıyor:** izole test edildi, metin TextEdit'e yazıldı (pano+Cmd-V). Erişilebilirlik izni verildi, "not trusted" uyarısı kayboldu.
+- **✅ Whisper motoru + regex temizliği + mikrofon hot-plug** çalışıyor.
+- **🔴 AÇIK BUG:** sağ ⌥ bas-konuş → imlece yazı gelmiyor. Log teşhisi: kayıt sadece **0.5 sn** ve **RMS=0.0003 (sessiz)** → mikrofondan uygulamaya ses ulaşmıyor, whisper "Altyazı M.K." halüsinasyonu üretiyor, filtre eleyince boş kalıyor. Kod zinciri doğru; sorun ses girişinde + kayıt süresinde. Tam analiz + sonraki adımlar [[Bug-Defteri]]. Bug logu: `brain/son-bug-logu.txt`.
 - **Ollama + modeller kuruldu:** qwen3:4b (thinking kapatılamadı, elendi) ve qwen2.5:3b-instruct (hızlı ama anlam bozuyor). LLM temizliği şimdilik **varsayılan KAPALI**, regex-only güvenilir (bkz. Kararlar [2026-07-03]).
+- **Eklendi:** `_process`'e teşhis log'u (kayıt RMS/süre, ham transkript, temiz metin, enjeksiyon) — `/tmp/wispherklon.log`'a düşüyor.
 
 ## Sıradaki Adım
 
-1. **Mikrofonla uçtan uca test** (kullanıcı yapacak): mikrofon bağla → `./Wispherklon.command` → macOS izinleri ver (Mikrofon + Giriş İzleme + Erişilebilirlik, Terminal'e) → herhangi bir uygulamada sağ ⌥ bas-konuş → metin imlece yazılıyor mu?
-2. İzin akışını gerçek launcher'da doğrula, sonucu Kararlar'a işle (açık soru).
-3. **LLM kalitesi (opsiyonel iyileştirme):** qwen2.5:3b anlam bozuyor; prompt mühendisliği veya daha uyumlu/büyük model ile "anlamı koru" davranışı çözülünce LLM varsayılan açılabilir.
+1. **BUG ÇÖZ (öncelik):** [[Bug-Defteri]]'ndeki iki katman —
+   (a) uygulamada hangi giriş aygıtı kullanılıyor logla, gerekirse `InputStream(device=...)` explicit ver;
+   (b) kayıt 0.5 sn kalıyor → `_begin`/`_end` press-release sırasını logla (pynput alt_r davranışı);
+   (c) mik seviyesi: Sistem Ayarları → Ses → Giriş gain + kablosuz verici açık mı.
+2. Bug çözülünce uçtan uca tekrar test → Bitiş Çizgisi'ni işaretle.
+3. **LLM kalitesi (opsiyonel):** qwen2.5:3b anlam bozuyor; few-shot prompt / daha uyumlu model.
 
 ## Bitiş Çizgisi
 
@@ -39,3 +43,4 @@
 ## Alt Sayfalar
 
 - [[PRD]] — hedef, kapsam, kabul kriterleri, kapsam dışı
+- [[Bug-Defteri]] — açık bug: mikrofon sesi gelmiyor + kayıt kısa (teşhis + sonraki adımlar)

@@ -199,22 +199,32 @@ class WispherklonApp(rumps.App):
 
     def _process(self, audio):
         try:
+            import numpy as np
+            rms = float(np.sqrt(np.mean(audio ** 2))) if len(audio) else 0.0
+            dur = len(audio) / config.SAMPLE_RATE
+            print(f"[dikte] kayıt {dur:.1f}sn, {len(audio)} örnek, RMS={rms:.4f}",
+                  flush=True)
+
             self._set_status("Yazıya çevriliyor…")
             raw = self.transcriber.transcribe(audio)
+            print(f"[dikte] ham transkript: {raw!r}", flush=True)
             if not raw.strip():
                 self._done("Boş — bir şey duyulmadı")
                 return
 
             self._set_status("Temizleniyor…")
             text = cleaner.clean(raw, use_llm=self.use_llm)
+            print(f"[dikte] temiz metin: {text!r}", flush=True)
             if not text.strip():
                 self._done("Temizlik sonrası boş")
                 return
 
             injector.inject(text)
+            print(f"[dikte] enjekte edildi ({len(text)} karakter)", flush=True)
             preview = text if len(text) <= 40 else text[:37] + "…"
             self._done(f"Yazıldı: {preview}")
         except Exception as e:
+            print(f"[dikte] HATA: {e!r}", flush=True)
             self._done(f"Hata: {e}")
 
     def _idle_icon(self) -> str:

@@ -1,0 +1,3 @@
+[dikte] kayıt 0.5sn, 7680 örnek, RMS=0.0003
+[dikte] ham transkript: 'Altyazı M.K.'
+[dikte] temiz metin: ''
