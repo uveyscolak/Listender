@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "additionalDirectories": [
+      "/Users/minvaltaki/Documents/Claude/Wispherklon/.claude"
+    ],
+    "allow": [
+      "Bash(git add *)",
+      "Bash(git commit -m 'kurulum: SessionStart hook \\(settings.json\\) *)",
+      "Bash(git push *)"
+    ]
+  }
+}
