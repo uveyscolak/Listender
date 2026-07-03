@@ -2,6 +2,24 @@
 
 > NEDEN'in tek evi. Append-only. Her karar: tarih + ne + neden (+ varsa "denedik olmadı"). Eskiler silinmez.
 
+## [2026-07-03] Paketli .app'te Python UTF-8 modu ZORUNLU (dikteyi öldüren bug)
+
+**Ne:** Üç katman: (1) plist `LSEnvironment: {PYTHONUTF8: "1"}` — bundle'daki tüm Python UTF-8 modunda, (2) `/tmp/wispherklon.log` `encoding="utf-8", errors="replace"` ile açılır, (3) Ollama subprocess'i `encoding="utf-8"`.
+**Neden — denedik olmadı (encoding belirtmeden):** Finder'dan açılan .app'te locale C/ASCII'dir (terminaldeki gibi UTF-8 değil; terminal testinde üretilemedi çünkü shell'de Python C-locale'i otomatik UTF-8'e çevirir — Finder ortamında çevirmedi). Log dosyası encoding'siz açılınca `print("[dikte] kayıt…")` içindeki 'ı' harfi `UnicodeEncodeError` fırlattı → `_process` worker thread'i öldü → kayıt alınıyor ama metin asla yazılmıyordu. Hata mesajının kendisi de Türkçe karakter içerdiğinden except bloğu da çöktü — çifte sessiz ölüm. Türkçe uygulamada paketleme yaparken ilk bakılacak yer.
+**Ders:** kanıt `/tmp/wispherklon.log`'daki traceback'ti — bundled modda stdout/stderr'i log dosyasına yönlendirmek (run.py) bu teşhisi mümkün kıldı; yönlendirme kalıcı özellik olarak kaldı.
+
+## [2026-07-03] Kurulum: tek-tık kur.command + model yolu Wispherklon'un kendi klasörüne
+
+**Ne:** `Kurulum/` klasörü: imzalı `Wispherklon.app` + `kur.command` (çift tık → karantina kaldır + /Applications'a taşı + izin panellerini aç + başlat). Model yolu: VidScribe kopyası VARSA paylaşılır, yoksa `~/Library/Application Support/Wispherklon/models/`'a iner — dağıtılan .app yabancı makinede VidScribe klasörü oluşturmasın.
+**Neden:** README'deki elle adımlar (xattr + taşı + üç izin paneli) kullanıcıyı yordu; canlı kurulumda izin panellerinde kaybolma yaşandı. Tek komutluk script "en az uğraş" hedefini ancak yarı karşıladı — çift tıklık kur.command tam karşılıyor. İzin doğrulaması: TCC db dışarıdan okunamıyor (Full Disk Access ister); tek güvenilir teşhis uygulamanın kendi logu ("This process is not trusted" satırı = Giriş İzleme yok; "[mikrofon] stream açıldı" = mikrofon tamam).
+**Doğrulama (2026-07-03):** Paketli .app ile uçtan uca canlı dikte GEÇTİ — kayıt → transkript → temizlik → enjeksiyon, Türkçe karakterler dahil. Not: mikrofon izni Giriş İzleme/Erişilebilirlik'ten AYRI ve ilk stream açılışında sorulur; verici kapalı mikrofon (şarj bitmesi) 🚫 ikonuyla karışabiliyor.
+
+## [2026-07-03] v2 Paketleme: ad-hoc imzasız .app + tek komutluk karantina-kaldırma
+
+**Ne:** İndirilebilir uygulama py2app ile **ad-hoc imzalı (`codesign -s -`) .app** olarak paketlenir, GitHub release'ine `.zip`/`.dmg` konur. İmzalı+notarize .app yolu seçilmedi. Gatekeeper duvarı, README'deki tek satırlık komutla (`xattr -dr com.apple.quarantine`) aşılır. Whisper modeli .app dışında, ilk açılışta iner; Ollama/LLM indiren PC'de yerel çekilir; kullanıcının API anahtarı .app'e GÖMÜLMEZ.
+**Neden:** Kullanıcının Apple Developer hesabı yok ($99/yıl alınmayacak) → notarize edilmiş temiz .app mümkün değil. İmzasız .app + herkese açık GitHub dağıtımı = Gatekeeper "geliştirici doğrulanamadı" duvarı kaçınılmaz; kullanıcıyı en az uğraştıran dürüst çözüm = README'de tek komut (sağ tık→Aç yöntemi macOS Sequoia'da Sistem Ayarları'ndan ek onay isteyebildiği için elendi). "Tam yerel, ses/veri makineden çıkmaz" felsefesi gereği kullanıcının kendi API anahtarı dağıtılmaz — her indiren kendi LLM'ini çeker.
+**İzin tuzağı (bkz. [2026-07-03] izin stratejisi):** TCC izni çağıran binary'ye bağlanır. .app bundle binary yolu sabit olduğundan izinler .app'e bir kez verilip kalıcı olur — v1 launcher tuzağının .app karşılığı çözümü. Ad-hoc imza her build'de değişebildiğinden yeniden-build sonrası izinlerin tekrar istenmesi bilinen risk; kullanım sırasında test edilecek.
+
 ## [2026-07-03] Proje kuruldu — PRD yazıldı ✅
 
 **Mod:** hızlı · **Stack:** Python 3 (pywhispercpp, sounddevice, pynput, rumps, pyobjc)  

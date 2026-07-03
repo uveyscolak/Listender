@@ -1,6 +1,6 @@
 # WISPHERKLON — Context
 
-**Durum:** ✅ v1 TAMAM — sıradaki hedef: indirilebilir/paketlenmiş uygulama (sonraki oturum)  
+**Durum:** ✅ v1 TAMAM · ✅ v2 paketleme ÇALIŞIYOR — .app'ten canlı dikte geçti; kalan: GitHub release yayını  
 **Son güncelleme:** 2026-07-03 · **Son lint:** 2026-07-03  
 **Repo:** https://github.com/uveyscolak/Wispherklon · **Stack:** Python 3.14 (pywhispercpp, sounddevice, pynput, rumps, pyobjc) + opsiyonel Ollama · **Deploy:** lokal macOS menü barı uygulaması (Mac mini, M4, 16 GB)
 
@@ -16,8 +16,8 @@
 
 ## Sıradaki Adım
 
-1. **▶ ÖNCELİK — sonraki oturum: indirilebilir/paketlenmiş uygulama.** Kullanıcı v1'deki sabit launcher script yerine artık dağıtılabilir bir uygulama istiyor (2026-07-03). Bu, PRD'de kapsam dışı bırakılan ".app paketleme"nin bilinçli olarak v2'ye alınması → **mini-PRD döngüsü işlenecek** (doğrudan koda başlama; py2app mı / imzalı+notarize .app mı, dağıtım şekli, paketlemede izin stratejisinin korunması `AskUserQuestion` ile netleştirilecek). Dikkat: v1 izin tuzağı (TCC izni çağıran binary'ye bağlanır — bkz. Kararlar [2026-07-03] izin stratejisi) paketlemede yeniden gündeme gelir.
-2. **Günlük kullanım gözlemi** — stabilite, farklı uygulamalarda enjeksiyon, izin kalıcılığı.
+1. **▶ v2 paketleme — ÇEKİRDEK BİTTİ (2026-07-03):** py2app + ad-hoc imza + `build.sh` + `Kurulum/kur.command` (tek tık: karantina + taşı + izin panelleri + başlat). **Paketli .app'ten uçtan uca canlı dikte GEÇTİ** (log kanıtlı: kayıt→transkript→temizlik→enjeksiyon, Türkçe dahil). Gün içinde çözülen kritik bug: .app'te ASCII locale → Türkçe print worker'ı öldürüyordu (bkz. Kararlar [2026-07-03] UTF-8). Kalan: **GitHub release yayını** (zip hazır: `dist/Wispherklon.zip`; release edilmedi — kod commit'i kullanıcıda) + temiz makinede ilk-açılış model indirme testi.
+2. **Günlük kullanım gözlemi** — stabilite, farklı uygulamalarda enjeksiyon, izin kalıcılığı (özellikle ad-hoc: rebuild sonrası izinler sıfırlanıyor, canlıda 2 kez yaşandı).
 3. **LLM kalitesi (opsiyonel):** 8B+ model dene; 4B sınıfı yetersiz kanıtlandı.
 
 ## Bitiş Çizgisi
@@ -33,9 +33,22 @@
 - [x] <0.5 sn basmalarda hiçbir şey yazılmaz *(sentetik kısa basma testi geçti)*
 - [x] İnternetsiz uçtan uca çalışır *(Wi-Fi kapatılarak test edildi, geçti)*
 
+## v2 Bitiş Çizgisi — Paketleme
+
+[Detay: [[PRD]] Ek — Paketleme]
+
+- [ ] GitHub release'inden indirilen `.zip`, kurulum sonrası çift tıkla açılır *(zip hazır, release HENÜZ YAYINLANMADI — kod commit'i kullanıcıda)*
+- [x] .app menü barında çalışır, v1 dikte akışı korunur *(canlı dikte log kanıtlı geçti, 2026-07-03)*
+- [x] İlk açılışta Whisper modeli yoksa otomatik iner *(kod hazır; bu makinede VidScribe kopyası kullanıldı — temiz makine testi bekliyor)*; Ollama yoksa menüden yönlendirme + onaylı model indirme var; LLM'siz tam çalışır
+- [x] Kullanıcının API anahtarı / gizli bilgisi .app içinde YOK *(grep taraması temiz)*
+- [x] Mikrofon/Giriş İzleme/Erişilebilirlik izinleri .app'e verildi, dikte çalıştı *(kalıcılık gözlemi sürüyor; rebuild izinleri sıfırlıyor — bilinen ad-hoc sınırı)*
+- [x] README indir→kur→izin akışıyla yeniden yazıldı + `Kurulum/kur.command` tek-tık kurulum
+
 ## Açık Sorular
 
-- İzin kalıcılığı: bugün launcher üzerinden verilen izinler oturum boyu sorunsuzdu; birkaç gün / yeniden başlatma sonrası teyit edilince Kararlar'a işlenecek.
+- İzin kalıcılığı: birkaç gün / yeniden başlatma sonrası teyit edilince Kararlar'a işlenecek. **Ad-hoc gerçeği (yaşandı):** her rebuild imzayı değiştiriyor → izinler sıfırlanıyor; sık release'te kullanıcı her sürümde izinleri yeniden verir. Çözüm adayı: self-signed sabit sertifika (Apple hesabı gerektirmez) — ihtiyaç doğarsa araştırılacak.
+- TCC izinleri terminalden VERİLEMEZ (Apple güvenlik duvarı — sadece sıfırlama var, `tccutil reset`); kur.command'ın yapabildiği en fazlası doğru panelleri açmak. Mikrofon izni istisna: plist'teki `NSMicrophoneUsageDescription` sayesinde ilk kayıtta otomatik sorulur.
+- Temiz makinede ilk-açılış model indirmesi (~1.5 GB) hiç test edilmedi.
 
 ## Alt Sayfalar
 

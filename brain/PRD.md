@@ -62,11 +62,38 @@ Sorulamadan varsayılanlar (sonradan teyit edilebilir):
 - Kısayol sağ Option'a sabit; ayarlanabilir kısayol v2.
 - LLM temizliği menü barından aç/kapa yapılabilir; varsayılan: açık (Ollama erişilebilirse).
 
+## Ek — Paketleme / indirilebilir uygulama (2026-07-03)
+
+**Problem:** v1 sabit `Wispherklon.command` launcher script ile çalışıyor — repo klonlanıp elle kuruluyor. Kullanıcı artık GitHub release'inden indirilip çift tıkla açılan, dağıtılabilir bir uygulama istiyor. Ama Apple Developer hesabı ($99/yıl) yok → imzalı+notarize edilmiş .app yolu kapalı. Hedef: imzasız/ad-hoc bir .app ile kullanıcıyı *mümkün olan en az uğraşa* sokmak.
+
+**Çözüm:**
+- **py2app ile ad-hoc imzalı .app** (Apple sertifikası yok; ad-hoc `codesign -s -`). GitHub release'ine `.zip`/`.dmg` olarak konur.
+- **Gatekeeper aşımı — tek komutluk kurulum scripti:** indiren kullanıcı README'deki tek satırlık komutu (`xattr -dr com.apple.quarantine Wispherklon.app` + izin yönlendirme) Terminal'e yapıştırır; sonrası çift tık. İmza gerektirmeyen, dürüst çözüm.
+- **API/gizli anahtar sızdırma YOK:** kullanıcının (Üveys) API anahtarları .app'e gömülmez. İndiren her PC LLM'i *kendi makinesine* çeker — tam yerel felsefesiyle uyumlu.
+- **İlk açılışta otomatik kurulum:** Whisper modeli (large-v3-turbo, ~1.6 GB) yoksa HF'den indirilir (VidScribe kopyası varsa paylaşılır — mevcut mantık). Ollama kuruluysa model çekilir, değilse kullanıcı yönlendirilir. LLM zaten opsiyonel/varsayılan kapalı.
+- **Model .app dışında:** bundle'a gömülmez → .app küçük kalır (~50 MB), ilk açılışta iner.
+- **İzin stratejisi korunur:** TCC izni sabit binary'ye bağlanır (bkz. Kararlar [2026-07-03] izin stratejisi). .app bundle'ının binary yolu sabit olduğu için izinler .app'e bir kez verilir, kalıcı olur — v1'deki launcher tuzağının .app karşılığı. Ad-hoc imza her build'de değişebileceğinden, izinlerin yeniden istenmesi bilinen risk (test edilecek).
+
+**Kabul kriterleri (paketleme):**
+- [ ] GitHub release'inden indirilen `.zip`/`.dmg`, tek komutluk karantina-kaldırma sonrası çift tıkla açılır.
+- [ ] .app menü barında çalışır, v1'in tüm dikte akışı (bas-konuş → enjeksiyon) korunur.
+- [ ] İlk açılışta Whisper modeli yoksa otomatik iner; Ollama yoksa kullanıcı net yönlendirilir (uygulama LLM'siz de çalışır).
+- [ ] Kullanıcının API anahtarı / gizli bilgisi .app içinde YOK.
+- [ ] Mikrofon/Giriş İzleme/Erişilebilirlik izinleri .app'e verilebilir ve normal kullanımda kalıcı olur.
+- [ ] README'de indir→kur→izin adımları, en az uğraşla, açıkça yazılı.
+
+**Kapsam dışı (paketleme):**
+- İmzalı + notarize .app (Apple Developer hesabı gerektirir — şu an yok).
+- Otomatik güncelleme (Sparkle vb.).
+- launchd ile açılışta otomatik başlatma (v3 adayı).
+- App Store dağıtımı.
+
 ## Değişiklik Notları
 
 > Append-only. Yön/kapsam değiştiğinde: `[YYYY-AA-GG] ne değişti — bkz. Kararlar [tarih]`. Gövde sessizce yeniden yazılmaz.
 
 - [2026-07-03] Kapsam genişletildi: "imzalı .app paketleme / py2app" (v1'de Kapsam Dışı → v2 adayıydı) bilinçli olarak sonraki oturumun hedefi yapıldı — indirilebilir/dağıtılabilir uygulama. Kullanıcı isteği. Mini-PRD döngüsü sonraki oturumda işlenecek; ayrıntılı kabul kriterleri o zaman `## Ek — paketleme` olarak yazılacak.
+- [2026-07-03] Mini-PRD işlendi → `## Ek — Paketleme` eklendi. Paketleme yöntemi imzalı .app DEĞİL, **ad-hoc imzasız .app + tek komutluk karantina-kaldırma** olarak netleşti (Apple Developer hesabı yok). Kullanıcı API anahtarı gömülmeyecek; LLM indiren PC'de yerel çekilir — bkz. Kararlar [2026-07-03] paketleme.
 
 ---
 [[Context]] — ana hub
