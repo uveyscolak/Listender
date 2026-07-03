@@ -31,3 +31,14 @@
 
 **Ne:** Mikrofon + Input Monitoring + Accessibility izinleri hep aynı sabit binary/launcher üzerinden verilir; py2app paketleme v2'ye bırakıldı.  
 **Neden:** macOS TCC izni koda değil çağıran binary'ye bağlar — venv/python değişince izinler sessizce bozulur (bilinen tuzak). Sabit launcher bunu ucuza çözer; imzalı .app daha temiz ama v1 için gereksiz yük.
+
+## [2026-07-03] Mikrofon hot-plug: yoksa çalışma, takılınca otomatik gel
+
+**Ne:** Açılışta mikrofon yoksa uygulama çökmz — 🚫 ikonu + "bağlanınca hazır olur" durumu gösterir, bas-konuş devre dışı kalır. `rumps.Timer` her 2 sn `sd._terminate()/_initialize()` ile aygıt cache'ini tazeleyip yoklar; mikrofon takılınca stream'i açıp otomatik hazır olur, çekilince tekrar bekleme durumuna döner.
+**Neden:** Bu makine (Mac mini) dahili mikrofonsuz; giriş aygıtı sonradan (USB/kamera) bağlanıyor. Kullanıcı "mikrofon bağlı değilse program çalışmasın, bağlanınca otomatik gelen kanalla çalışsın" dedi. sounddevice aygıtları ilk sorguda cache'lediği için çalışırken takılan mikrofon yeniden başlatmadan görünmez → cache tazeleme şart.
+
+## [2026-07-03] LLM temizlik modeli: qwen3:4b → qwen2.5:3b-instruct, varsayılan KAPALI
+
+**Ne:** LLM post-process modeli qwen3:4b'den qwen2.5:3b-instruct'a geçti; chat endpoint (`/api/chat`) + `keep_alive` kullanılıyor. LLM varsayılan olarak KAPALI başlıyor, menüden manuel açılır.
+**Neden — denedik olmadı (qwen3:4b):** thinking modu kapatılamadı — `think:false` (hem generate hem chat), `/no_think` sistem promptu, `num_predict` sınırı hepsi denendi; model her koşulda İngilizce uzun reasoning yapıyor ("Okay, let's tackle this...") ve çağrı 60-130 sn sürüyor. `<think>` etiketi bile gelmediği için strip edilemiyor. Dikte için kabul edilemez → elendi.
+**qwen2.5:3b-instruct:** reasoning yok, ısınınca ~0.6 sn (hedefe uygun). ANCAK anlamı bozabiliyor: "bugün"→"günümüz", "müşteriyle"→"müşterimize", "onayladı"→"onayladık". Prompt sıkılaştırması (zaman/kişi koru) yetmedi. Bu yüzden LLM şimdilik KAPALI; regex-only güvenilir varsayılan. Prompt mühendisliği veya daha büyük/uyumlu bir model sonraki oturuma bırakıldı. Regex katmanı test edildi, doğru çalışıyor.
