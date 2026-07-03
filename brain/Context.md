@@ -12,7 +12,7 @@
   3. **LLM temizliği #2:** qwen2.5:3b elendi (prompt sızıntısı/Çince/kişi kayması); model `qwen3:4b-instruct` + few-shot prompt'a geçti ama 4B sınıfı hâlâ güvenilmez ("verdim→verildi") → **varsayılan KAPALI** kaldı, menüden bilinçli açılır (bkz. Kararlar).
 - **Doğrulama:** 5+ canlı dikte (kullanıcı) + 3 gözetimsiz uçtan uca test (sentetik sağ ⌥ + hoparlörden `say`): kısa basma filtresi, pano geri yükleme (sentinel), **internetsiz tam zincir** (Wi-Fi kapalıyken dikte→enjeksiyon çalıştı).
 - Teşhis logu `/tmp/wispherklon.log` (kayıt RMS/süre, ham transkript, temiz metin, enjeksiyon).
-- Diskte artık kullanılmayan modeller: `qwen2.5:3b-instruct` (1.9 GB) + `qwen3:4b` (2.5 GB) — istenirse `ollama rm` ile silinebilir.
+- Elenmiş modeller diskten silindi (2026-07-03): `qwen2.5:3b-instruct` + `qwen3:4b` → ~4.1 GB boşaldı. Kalan tek model: `qwen3:4b-instruct` (kullanımdaki). Elenme gerekçeleri Kararlar'da, tekrar denemeye gerek yok.
 
 ## Sıradaki Adım
 
