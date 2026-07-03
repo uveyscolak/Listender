@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# macOS
+.DS_Store
+
+# Ses/model dosyaları repoya girmez
+*.wav
+*.bin
+
+# Claude lokal ayar
+.claude/settings.local.json
