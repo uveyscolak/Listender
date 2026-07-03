@@ -2,7 +2,7 @@
 
 **Durum:** 🟡 kurulum  
 **Son güncelleme:** 2026-07-03 · **Son lint:** 2026-07-03  
-**Repo:** [repo-url] · **Stack:** Python 3 (pywhispercpp, sounddevice, pynput, rumps, pyobjc) + opsiyonel Ollama/Qwen3-4B · **Deploy:** lokal macOS menü barı uygulaması (M4, 16 GB)
+**Repo:** https://github.com/uveyscolak/Wispherklon · **Stack:** Python 3 (pywhispercpp, sounddevice, pynput, rumps, pyobjc) + opsiyonel Ollama/Qwen3-4B · **Deploy:** lokal macOS menü barı uygulaması (M4, 16 GB)
 
 ## Şu An Nerede
 

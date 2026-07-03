@@ -2,7 +2,7 @@
 
 Wispr Flow'un tamamen yerel/offline klonu: macOS menü barında yaşayan Türkçe sesli dikte asistanı. Sağ Option'a basılı tutup konuş — whisper.cpp sesi yazıya döker, dolgular temizlenir, metin aktif uygulamanın imlecine yazılır. Ses makineden çıkmaz.
 
-**Beyin:** `./brain/` · **Repo:** [repo-url] · **Stack:** Python 3 (pywhispercpp, sounddevice, pynput, rumps, pyobjc) + opsiyonel Ollama/Qwen3-4B · **Deploy:** lokal macOS menü barı uygulaması (M4, 16 GB)
+**Beyin:** `./brain/` · **Repo:** https://github.com/uveyscolak/Wispherklon · **Stack:** Python 3 (pywhispercpp, sounddevice, pynput, rumps, pyobjc) + opsiyonel Ollama/Qwen3-4B · **Deploy:** lokal macOS menü barı uygulaması (M4, 16 GB)
 
 ---
 
