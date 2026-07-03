@@ -3,13 +3,16 @@
 from pathlib import Path
 
 # --- Model ---
-# VidScribe'ın indirdiği dosya paylaşılır; yoksa aynı HF URL'sinden indirilir.
+# VidScribe'ın indirdiği dosya VARSA paylaşılır (bu makinede öyle); yoksa model
+# Wispherklon'un kendi klasörüne indirilir — dağıtılan .app yabancı makinede
+# "VidScribe" klasörü oluşturmasın.
 MODEL_NAME = "large-v3-turbo"
-MODELS_DIR = Path.home() / "Library" / "Application Support" / "VidScribe" / "models"
 MODEL_URL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-{name}.bin"
 
-# Wispherklon kendi verisini burada tutar (log, ayar vb.)
+# Wispherklon kendi verisini burada tutar (model, log, ayar vb.)
 APP_SUPPORT_DIR = Path.home() / "Library" / "Application Support" / "Wispherklon"
+MODELS_DIR = APP_SUPPORT_DIR / "models"
+VIDSCRIBE_MODELS_DIR = Path.home() / "Library" / "Application Support" / "VidScribe" / "models"
 
 # --- Ses ---
 SAMPLE_RATE = 16_000          # whisper.cpp'in beklediği örnekleme
@@ -60,6 +63,13 @@ HALLUCINATION_PATTERNS = [
 #   varsayılan KAPALI; bilinçli kullanıcı menüden açar.
 OLLAMA_URL = "http://127.0.0.1:11434"
 OLLAMA_MODEL = "qwen3:4b-instruct"
+# Finder'dan açılan .app'in PATH'inde /opt/homebrew/bin olmaz — binary buradan aranır:
+OLLAMA_BINARY_PATHS = [
+    "/opt/homebrew/bin/ollama",              # Homebrew (Apple Silicon)
+    "/usr/local/bin/ollama",                 # Homebrew (Intel) / resmi installer
+    "/Applications/Ollama.app/Contents/Resources/ollama",  # resmi .app
+]
+OLLAMA_DOWNLOAD_URL = "https://ollama.com/download"
 OLLAMA_KEEP_ALIVE = "30m"        # modeli bellekte tut, cold-start'ı önle
 OLLAMA_NUM_PREDICT = 256         # çıktı token sınırı (dikte metni kısa)
 OLLAMA_ENABLED_DEFAULT = False
@@ -89,4 +99,9 @@ PASTE_RESTORE_DELAY = 0.3    # Cmd-V sonrası eski panoyu geri yüklemeden önce
 
 
 def model_path() -> Path:
-    return MODELS_DIR / f"ggml-{MODEL_NAME}.bin"
+    """Kullanılacak model dosyası: VidScribe'ınki varsa o, yoksa kendi klasörümüz."""
+    name = f"ggml-{MODEL_NAME}.bin"
+    vidscribe = VIDSCRIBE_MODELS_DIR / name
+    if vidscribe.exists():
+        return vidscribe
+    return MODELS_DIR / name

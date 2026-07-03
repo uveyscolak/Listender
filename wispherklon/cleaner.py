@@ -9,6 +9,8 @@
 
 import json
 import re
+import shutil
+import subprocess
 import urllib.error
 import urllib.request
 
@@ -64,6 +66,73 @@ def regex_clean(text: str) -> str:
 
 
 # --- Aşama 2: Ollama ---
+
+def ollama_binary() -> str | None:
+    """Ollama binary'sinin yolu, kurulu değilse None.
+
+    Finder'dan açılan .app'in PATH'inde /opt/homebrew/bin olmaz —
+    bilinen kurulum yolları elle denenir, sonra PATH'e bakılır.
+    """
+    for p in config.OLLAMA_BINARY_PATHS:
+        if shutil.which(p):
+            return p
+    return shutil.which("ollama")
+
+
+def ollama_serving() -> bool:
+    """Ollama servisi ayakta mı? (Model şartı YOK — sadece API cevabı.)"""
+    try:
+        req = urllib.request.Request(f"{config.OLLAMA_URL}/api/tags")
+        with urllib.request.urlopen(req, timeout=1.5):
+            return True
+    except Exception:
+        return False
+
+
+def start_ollama_if_installed():
+    """Ollama kuruluysa ve servis ayakta değilse arka planda başlat.
+
+    v1'de bu işi Wispherklon.command launcher'ı yapıyordu; .app'te
+    launcher olmadığı için açılışta uygulama üstlenir. Kurulu değilse
+    sessizce geçer — LLM zaten opsiyonel.
+    """
+    binary = ollama_binary()
+    if binary is None or ollama_serving():
+        return
+    try:
+        subprocess.Popen(
+            [binary, "serve"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,  # uygulama kapanınca ollama'yı öldürme
+        )
+    except Exception:
+        pass
+
+
+def pull_model(progress_callback=None) -> bool:
+    """Hedef modeli Ollama'ya indir (bloklar — worker thread'den çağır)."""
+    binary = ollama_binary()
+    if binary is None:
+        return False
+    report = progress_callback or (lambda msg: None)
+    try:
+        proc = subprocess.Popen(
+            [binary, "pull", config.OLLAMA_MODEL],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding="utf-8",
+            errors="replace",  # .app'te yerel ASCII olabilir — çökme yerine değiştir
+        )
+        for line in proc.stdout:
+            line = line.strip()
+            if line:
+                report(f"Model indiriliyor: {line[:60]}")
+        return proc.wait() == 0
+    except Exception:
+        return False
+
 
 def ollama_available() -> bool:
     """Ollama çalışıyor ve hedef model yüklü mü?"""

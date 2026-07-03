@@ -14,5 +14,8 @@ build/
 *.wav
 *.bin
 
+# Build çıktısı .app repoya girmez — release zip'iyle dağıtılır (kur.command git'te kalır)
+Kurulum/Wispherklon.app/
+
 # Claude lokal ayar
 .claude/settings.local.json

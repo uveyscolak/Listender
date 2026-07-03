@@ -53,6 +53,12 @@ class WispherklonApp(rumps.App):
         # Ağır açılışı (model yükleme) worker'a al: UI'ı bloklamasın.
         threading.Thread(target=self._load_model, daemon=True).start()
 
+        # v1'de launcher'ın yaptığı iş: Ollama kuruluysa servisi başlat.
+        # (.app'te launcher yok; kurulu değilse sessizce geçer — LLM opsiyonel.)
+        threading.Thread(
+            target=cleaner.start_ollama_if_installed, daemon=True
+        ).start()
+
         # Mikrofon durumunu periyodik yokla: takılınca otomatik gelsin,
         # çekilince bas-konuş devre dışı kalsın. (rumps.Timer ana thread'de.)
         self._mic_timer = rumps.Timer(self._poll_mic, 2)
@@ -72,6 +78,8 @@ class WispherklonApp(rumps.App):
             self._model_loaded = True
             self._update_idle_state()
         except Exception as e:
+            import traceback
+            traceback.print_exc()  # bundled modda /tmp/wispherklon.log'a düşer
             self._set_status(f"Model hatası: {e}")
             self._set_title("⚠️")
 
@@ -157,8 +165,59 @@ class WispherklonApp(rumps.App):
             self.llm_item.title = "LLM temizliği (Ollama) — kapalı"
 
     def _toggle_llm(self, _):
-        self.use_llm = not self.use_llm
-        self._refresh_llm_check()
+        if self.use_llm:
+            # Kapatma her zaman serbest.
+            self.use_llm = False
+            self._refresh_llm_check()
+            return
+
+        # Açma: Ollama + model hazır değilse kullanıcıyı yönlendir.
+        if cleaner.ollama_available():
+            self.use_llm = True
+            self._refresh_llm_check()
+            return
+
+        if cleaner.ollama_binary() is None:
+            # Ollama kurulu değil → indirme sayfasına yönlendir.
+            clicked = rumps.alert(
+                title="Ollama kurulu değil",
+                message=(
+                    "LLM temizliği için Ollama gerekir (ücretsiz, yerel çalışır).\n"
+                    "İndirme sayfasını açayım mı? Kurduktan sonra bu menüden "
+                    "tekrar açabilirsin.\n\nDikte, LLM olmadan da tam çalışır."
+                ),
+                ok="İndirme sayfasını aç", cancel="Vazgeç",
+            )
+            if clicked == 1:
+                import subprocess
+                subprocess.Popen(["open", config.OLLAMA_DOWNLOAD_URL])
+            return
+
+        # Ollama kurulu ama model eksik (veya servis yeni kalkıyor) → çekmeyi öner.
+        clicked = rumps.alert(
+            title="LLM modeli eksik",
+            message=(
+                f"Ollama kurulu ama {config.OLLAMA_MODEL} modeli yok.\n"
+                "Şimdi indireyim mi? (~2.5 GB, bir kez — arka planda iner, "
+                "bitince LLM temizliği otomatik açılır.)"
+            ),
+            ok="İndir", cancel="Vazgeç",
+        )
+        if clicked == 1:
+            self._set_status("LLM modeli indiriliyor…")
+            threading.Thread(target=self._pull_llm_model, daemon=True).start()
+
+    def _pull_llm_model(self):
+        """Ollama modelini arka planda çek; bitince LLM'i aç. (Worker thread.)"""
+        cleaner.start_ollama_if_installed()
+        time.sleep(1.0)  # serve yeni başladıysa soluklan
+        ok = cleaner.pull_model(progress_callback=self._set_status)
+        if ok and cleaner.ollama_available():
+            self.use_llm = True
+            self._set_status("LLM modeli hazır — temizlik açıldı")
+        else:
+            self._set_status("LLM modeli indirilemedi — internet var mı?")
+        AppHelper.callAfter(self._refresh_llm_check)
 
     def _quit(self, _):
         try:
