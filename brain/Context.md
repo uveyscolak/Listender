@@ -1,6 +1,6 @@
 # WISPHERKLON — Context
 
-**Durum:** ✅ v1 TAMAM · ✅ v2 paketleme ÇALIŞIYOR — .app'ten canlı dikte geçti; kalan: GitHub release yayını  
+**Durum:** ✅ v1 TAMAM · ✅ v2 YAYINDA — GitHub release v2.0.0, .app'ten canlı dikte geçti  
 **Son güncelleme:** 2026-07-03 · **Son lint:** 2026-07-03  
 **Repo:** https://github.com/uveyscolak/Wispherklon · **Stack:** Python 3.14 (pywhispercpp, sounddevice, pynput, rumps, pyobjc) + opsiyonel Ollama · **Deploy:** lokal macOS menü barı uygulaması (Mac mini, M4, 16 GB)
 
@@ -16,7 +16,7 @@
 
 ## Sıradaki Adım
 
-1. **▶ v2 paketleme — ÇEKİRDEK BİTTİ (2026-07-03):** py2app + ad-hoc imza + `build.sh` + `Kurulum/kur.command` (tek tık: karantina + taşı + izin panelleri + başlat). **Paketli .app'ten uçtan uca canlı dikte GEÇTİ** (log kanıtlı: kayıt→transkript→temizlik→enjeksiyon, Türkçe dahil). Gün içinde çözülen kritik bug: .app'te ASCII locale → Türkçe print worker'ı öldürüyordu (bkz. Kararlar [2026-07-03] UTF-8). Kalan: **GitHub release yayını** (zip hazır: `dist/Wispherklon.zip`; release edilmedi — kod commit'i kullanıcıda) + temiz makinede ilk-açılış model indirme testi.
+1. **✅ v2 paketleme BİTTİ ve YAYINDA (2026-07-03):** py2app + ad-hoc imza + `build.sh` + `Kurulum/kur.command`. Paketli .app'ten uçtan uca canlı dikte GEÇTİ (log kanıtlı). Kritik bug çözüldü: .app'te ASCII locale → Türkçe print worker'ı öldürüyordu (bkz. Kararlar [2026-07-03] UTF-8). Kod commit'lendi (kullanıcı onayıyla, `3187f4e`), **release v2.0.0 yayınlandı**. Kalan pürüz: temiz makinede indirme + ilk-açılış model indirme testi hiç yapılmadı.
 2. **Günlük kullanım gözlemi** — stabilite, farklı uygulamalarda enjeksiyon, izin kalıcılığı (özellikle ad-hoc: rebuild sonrası izinler sıfırlanıyor, canlıda 2 kez yaşandı).
 3. **LLM kalitesi (opsiyonel):** 8B+ model dene; 4B sınıfı yetersiz kanıtlandı.
 
@@ -37,7 +37,7 @@
 
 [Detay: [[PRD]] Ek — Paketleme]
 
-- [ ] GitHub release'inden indirilen `.zip`, kurulum sonrası çift tıkla açılır *(zip hazır, release HENÜZ YAYINLANMADI — kod commit'i kullanıcıda)*
+- [x] GitHub release yayında: **v2.0.0** — `Wispherklon-Kurulum.zip` (kur.command + .app, 27 MB) → https://github.com/uveyscolak/Wispherklon/releases/tag/v2.0.0 *(indiren: zip aç → kur.command sağ tık→Aç → gerisi otomatik; indirme testi başka makinede yapılmadı)*
 - [x] .app menü barında çalışır, v1 dikte akışı korunur *(canlı dikte log kanıtlı geçti, 2026-07-03)*
 - [x] İlk açılışta Whisper modeli yoksa otomatik iner *(kod hazır; bu makinede VidScribe kopyası kullanıldı — temiz makine testi bekliyor)*; Ollama yoksa menüden yönlendirme + onaylı model indirme var; LLM'siz tam çalışır
 - [x] Kullanıcının API anahtarı / gizli bilgisi .app içinde YOK *(grep taraması temiz)*
