@@ -97,26 +97,33 @@ class WispherklonApp(rumps.App):
     def _poll_mic(self, _timer):
         if self._recording:
             return
-        # Cache'i tazele ki sonradan takılan mikrofon görünsün.
-        Recorder.refresh_devices()
-        present = Recorder.has_input_device()
 
-        if present and not self._mic_ok:
-            # Mikrofon geldi → stream'i aç.
+        if self._mic_ok:
+            # Stream açıkken PortAudio'ya DOKUNMA: refresh_devices
+            # (sd._terminate/_initialize) aktif stream'i sessizce öldürür
+            # (kanıtlandı, bkz. Bug-Defteri 2026-07-03). Sadece sağlık kontrolü:
+            # callback akışı durduysa mikrofon çekilmiş/stream ölmüş demektir.
+            if not self.recorder.stream_alive():
+                print("[mikrofon] callback akışı durdu — stream kapatılıyor",
+                      flush=True)
+                self._mic_ok = False
+                try:
+                    self.recorder.stop_stream()
+                except Exception:
+                    pass
+                self._update_idle_state()
+            return
+
+        # Mikrofon yok → cache'i tazele ki sonradan takılan aygıt görünsün.
+        # (Stream kapalıyken _terminate/_initialize güvenli.)
+        Recorder.refresh_devices()
+        if Recorder.has_input_device():
             try:
                 self.recorder.start_stream()
                 self._mic_ok = True
                 self._update_idle_state()
             except Exception:
                 self._mic_ok = False
-        elif not present and self._mic_ok:
-            # Mikrofon çekildi → stream'i kapat, bas-konuşu durdur.
-            self._mic_ok = False
-            try:
-                self.recorder.stop_stream()
-            except Exception:
-                pass
-            self._update_idle_state()
 
     # --- Durum/UI (ana thread'e köprü) ---
 
@@ -204,6 +211,12 @@ class WispherklonApp(rumps.App):
             dur = len(audio) / config.SAMPLE_RATE
             print(f"[dikte] kayıt {dur:.1f}sn, {len(audio)} örnek, RMS={rms:.4f}",
                   flush=True)
+
+            # Sessizlik kapısı: sinyal yoksa (verici kapalı vb.) whisper'a hiç
+            # gitme — normalize edilmiş gürültü halüsinasyon üretir.
+            if rms < config.SILENCE_RMS:
+                self._done("Ses yok — mikrofon/verici açık mı?")
+                return
 
             self._set_status("Yazıya çevriliyor…")
             raw = self.transcriber.transcribe(audio)

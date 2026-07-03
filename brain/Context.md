@@ -1,25 +1,21 @@
 # WISPHERKLON — Context
 
-**Durum:** 🟠 canlı test yapıldı — parçalar çalışıyor, 1 açık bug (mikrofon sesi gelmiyor + kayıt kısa)  
+**Durum:** 🟢 ÇALIŞIYOR — ana bug çözüldü, canlı dikte uçtan uca doğrulandı (2 başarılı test)  
 **Son güncelleme:** 2026-07-03 · **Son lint:** 2026-07-03  
 **Repo:** https://github.com/uveyscolak/Wispherklon · **Stack:** Python 3.14 (pywhispercpp, sounddevice, pynput, rumps, pyobjc) + opsiyonel Ollama · **Deploy:** lokal macOS menü barı uygulaması (Mac mini, M4, 16 GB)
 
 ## Şu An Nerede
 
-- **Canlı test yapıldı (2026-07-03, "Wireless Microphone RX" bağlı).** Çoğu parça çalışıyor, tek açık bug var → detay [[Bug-Defteri]].
-- **✅ Enjeksiyon çalışıyor:** izole test edildi, metin TextEdit'e yazıldı (pano+Cmd-V). Erişilebilirlik izni verildi, "not trusted" uyarısı kayboldu.
-- **✅ Whisper motoru + regex temizliği + mikrofon hot-plug** çalışıyor.
-- **🔴 AÇIK BUG:** sağ ⌥ bas-konuş → imlece yazı gelmiyor. Log teşhisi: kayıt sadece **0.5 sn** ve **RMS=0.0003 (sessiz)** → mikrofondan uygulamaya ses ulaşmıyor, whisper "Altyazı M.K." halüsinasyonu üretiyor, filtre eleyince boş kalıyor. Kod zinciri doğru; sorun ses girişinde + kayıt süresinde. Tam analiz + sonraki adımlar [[Bug-Defteri]]. Bug logu: `brain/son-bug-logu.txt`.
+- **✅ ANA BUG ÇÖZÜLDÜ (2026-07-03):** "mikrofon sesi gelmiyor + kayıt 0.5 sn" — kök neden `_poll_mic`'in her 2 sn'de `sd._terminate()/_initialize()` çağırıp **açık stream'i öldürmesiydi** (repro ile kanıtlandı). Fix: stream açıkken PortAudio'ya dokunulmaz, sağlık kontrolü `stream_alive()` ile. Ek: peak normalizasyon + sessizlik kapısı. Detay [[Bug-Defteri]], gerekçe Kararlar [2026-07-03]. İkincil etken: kablosuz mikrofonun vericisi kapalıymış.
+- **✅ CANLI DOĞRULANDI:** 2 gerçek dikte — 6.5 sn ve 5.1 sn kayıt (RMS ~0.04), kusursuz Türkçe transkript (noktalama dahil), metin imlece enjekte edildi. Zincirin tamamı çalışıyor: kayıt → whisper → regex temizlik → pano+Cmd-V.
+- **✅ Enjeksiyon, whisper motoru, regex temizliği, mikrofon hot-plug** çalışıyor.
 - **Ollama + modeller kuruldu:** qwen3:4b (thinking kapatılamadı, elendi) ve qwen2.5:3b-instruct (hızlı ama anlam bozuyor). LLM temizliği şimdilik **varsayılan KAPALI**, regex-only güvenilir (bkz. Kararlar [2026-07-03]).
-- **Eklendi:** `_process`'e teşhis log'u (kayıt RMS/süre, ham transkript, temiz metin, enjeksiyon) — `/tmp/wispherklon.log`'a düşüyor.
+- Teşhis logu `/tmp/wispherklon.log`'a düşüyor (kayıt RMS/süre, ham transkript, temiz metin, enjeksiyon).
 
 ## Sıradaki Adım
 
-1. **BUG ÇÖZ (öncelik):** [[Bug-Defteri]]'ndeki iki katman —
-   (a) uygulamada hangi giriş aygıtı kullanılıyor logla, gerekirse `InputStream(device=...)` explicit ver;
-   (b) kayıt 0.5 sn kalıyor → `_begin`/`_end` press-release sırasını logla (pynput alt_r davranışı);
-   (c) mik seviyesi: Sistem Ayarları → Ses → Giriş gain + kablosuz verici açık mı.
-2. Bug çözülünce uçtan uca tekrar test → Bitiş Çizgisi'ni işaretle.
+1. Kalan Bitiş Çizgisi testleri: **kısa basma** (<0.5 sn → hiçbir şey yazılmamalı), **pano geri yükleme** gözle teyit, **internetsiz** uçtan uca.
+2. Günlük kullanımda gözlem — stabilite, farklı uygulamalarda enjeksiyon.
 3. **LLM kalitesi (opsiyonel):** qwen2.5:3b anlam bozuyor; few-shot prompt / daha uyumlu model.
 
 ## Bitiş Çizgisi
@@ -27,17 +23,17 @@
 [PRD Kabul Kriterleri'nin özeti. Detay: [[PRD]]]
 
 - [x] Menü barı uygulaması; model açılışta bir kez yüklenir, ikon durum yansıtır *(kodlandı+smoke test)*
-- [ ] Herhangi bir uygulamada bas-konuş → metin imlece yazılır *(mikrofonla test bekliyor)*
-- [ ] Türkçe karakterler sorunsuz + pano geri yüklenir *(mikrofonla test bekliyor)*
+- [x] Herhangi bir uygulamada bas-konuş → metin imlece yazılır *(canlı doğrulandı, 2 test — 2026-07-03)*
+- [~] Türkçe karakterler sorunsuz *(canlı doğrulandı)* + pano geri yüklenir *(gözle teyit bekliyor)*
 - [x] Regex dolgu temizliği çalışır *(test edildi)*
 - [~] Ollama LLM açılıp kapanabilir; Ollama yokken regex-only sorunsuz *(altyapı hazır, LLM kalitesi iyileştirme bekliyor)*
-- [x] 5–10 sn dikte ≤2 sn'de yazılır (LLM kapalı, M4) *(transkript ~1 sn ölçüldü)*
+- [x] 5–10 sn dikte ≤2 sn'de yazılır (LLM kapalı, M4) *(canlıda ~1-2 sn)*
 - [ ] <0.5 sn basmalarda hiçbir şey yazılmaz *(kod hazır: MIN_RECORD_SEC filtresi; canlı test bekliyor)*
 - [ ] İnternetsiz uçtan uca çalışır *(model diskte; canlı test bekliyor)*
 
 ## Açık Sorular
 
-- İzin stratejisinin pratikte davranışı (sabit launcher → Terminal'e verilen izin kalıcı mı) ilk canlı testte doğrulanacak → Kararlar'a.
+- İzin stratejisinin pratikte davranışı (sabit launcher → Terminal'e verilen izin kalıcı mı) — bugünkü testte izinler sorunsuz çalıştı; birkaç yeniden başlatma sonrası kalıcılık teyit edilince Kararlar'a işlenecek.
 - LLM anlam-koruma: qwen2.5:3b yetersiz. Prompt mı, model mi? (few-shot örnekli prompt denenebilir.)
 
 ## Alt Sayfalar

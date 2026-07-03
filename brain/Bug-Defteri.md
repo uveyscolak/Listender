@@ -5,7 +5,23 @@ Bilinen sorunlar, geçici çözümler, kök nedenler.
 
 ---
 
-## 🔴 AÇIK — Mikrofondan uygulamaya ses gelmiyor + kayıt çok kısa
+## ✅ ÇÖZÜLDÜ (2026-07-03) — Mikrofondan uygulamaya ses gelmiyor + kayıt çok kısa
+
+**Kök neden (kanıtlı):** `_poll_mic` her 2 sn'de `refresh_devices()` → `sd._terminate()/_initialize()` çağırıyordu — **stream açıkken bile**. PortAudio aktif stream'in altından çekilince stream sessizce ölüyor: callback bir daha hiç gelmiyor. İzole repro testiyle kanıtlandı (refresh öncesi 2 sn'de 66 callback, sonrası 0).
+
+Logdaki 7680 örnek = tam olarak pre-roll tamponu (16 blok × 480) — kayıt sırasında sıfır yeni blok gelmişti. Tek kök neden iki belirtiyi de açıklıyor; pynput/tuş zinciri suçsuzdu. İkincil etken: canlı testte kablosuz mikrofonun **vericisi kapalıymış** (RMS≈0'ın sebebi).
+
+**Fix (kod):**
+1. `_poll_mic` iki moda ayrıldı: mikrofon YOKKEN cache tazele+ara; mikrofon VARKEN PortAudio'ya dokunma, sadece sağlık kontrolü (`Recorder.stream_alive()` — son 1.5 sn'de callback geldi mi). Callback durursa (mik çekildi) stream kapatılıp arama moduna dönülür.
+2. `Recorder`'a `_last_block_at` + `stream_alive()` eklendi; `start_stream` hangi aygıta bağlandığını logluyor.
+3. **Peak normalizasyon** (`transcriber.transcribe`): kısık mikrofon sesi 0.95 tepeye ölçeklenir (konuşma RMS ~0.009 ölçülmüştü).
+4. **Sessizlik kapısı** (`_process`): RMS < `SILENCE_RMS` (0.0002) ise whisper'a hiç gitmeden "Ses yok — mikrofon/verici açık mı?" denir (halüsinasyon önlemi).
+
+**Doğrulama:** izole uçtan uca test (hoparlörden `say` ile cümle → mikrofon → whisper: birebir doğru transkript) + canlı kullanıcı testi: 6.5 sn dikte → kusursuz Türkçe transkript → 83 karakter imlece enjekte edildi.
+
+---
+
+## Arşiv — orijinal teşhis (2026-07-03, çözüm öncesi)
 
 **Belirti:** Sağ ⌥ bas-konuş yapılınca menüde "ses yazıya çevriliyor" görünüyor ama imlece hiçbir şey yazılmıyor.
 

@@ -10,6 +10,7 @@ Ses diske yazılmaz; float32 numpy dizisi olarak döner.
 
 import collections
 import threading
+import time
 
 import numpy as np
 import sounddevice as sd
@@ -32,8 +33,10 @@ class Recorder:
         self._max_samples = config.MAX_RECORD_SEC * config.SAMPLE_RATE
         self._recorded_samples = 0
         self._on_limit = None                   # üst sınır aşılınca çağrılır
+        self._last_block_at = 0.0               # son callback zamanı (sağlık kontrolü)
 
     def _callback(self, indata, frames, time_info, status):
+        self._last_block_at = time.monotonic()
         block = indata.copy().reshape(-1)       # (N,1) -> (N,)
         with self._lock:
             if self._recording:
@@ -79,6 +82,16 @@ class Recorder:
     def is_streaming(self) -> bool:
         return self._stream is not None
 
+    def stream_alive(self, timeout: float = 1.5) -> bool:
+        """Stream gerçekten ses taşıyor mu — son `timeout` sn içinde callback geldi mi?
+
+        Mikrofon fiziken çekilince PortAudio hata vermeden susabilir; tek
+        güvenilir sinyal callback akışının durmasıdır.
+        """
+        if self._stream is None:
+            return False
+        return (time.monotonic() - self._last_block_at) < timeout
+
     def start_stream(self):
         """Mikrofon stream'ini aç. Giriş aygıtı yoksa PortAudioError fırlatır."""
         if self._stream is not None:
@@ -90,7 +103,15 @@ class Recorder:
             blocksize=_BLOCK,
             callback=self._callback,
         )
+        # Açılışa süre tanı: ilk callback gelene kadar stream'i ölü sayma.
+        self._last_block_at = time.monotonic()
         self._stream.start()
+        try:
+            dev = sd.query_devices(self._stream.device)
+            print(f"[mikrofon] stream açıldı: [{self._stream.device}] {dev['name']}",
+                  flush=True)
+        except Exception:
+            pass
 
     def stop_stream(self):
         if self._stream is not None:

@@ -72,6 +72,11 @@ class Transcriber:
             raise RuntimeError("Model henüz yüklenmedi (load() çağrılmalı).")
 
         audio = np.asarray(audio, dtype=np.float32).flatten()
+        # Peak normalizasyon: kablosuz mikrofon çok kısık gelebiliyor (RMS ~0.009
+        # ölçüldü); cılız sesi whisper'ın rahat çözdüğü seviyeye çek.
+        peak = float(np.abs(audio).max()) if len(audio) else 0.0
+        if peak > 0:
+            audio = audio * (config.NORMALIZE_PEAK / peak)
         segments = self._model.transcribe(
             audio,
             language=config.LANGUAGE,

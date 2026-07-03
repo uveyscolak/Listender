@@ -37,6 +37,11 @@
 **Ne:** Açılışta mikrofon yoksa uygulama çökmz — 🚫 ikonu + "bağlanınca hazır olur" durumu gösterir, bas-konuş devre dışı kalır. `rumps.Timer` her 2 sn `sd._terminate()/_initialize()` ile aygıt cache'ini tazeleyip yoklar; mikrofon takılınca stream'i açıp otomatik hazır olur, çekilince tekrar bekleme durumuna döner.
 **Neden:** Bu makine (Mac mini) dahili mikrofonsuz; giriş aygıtı sonradan (USB/kamera) bağlanıyor. Kullanıcı "mikrofon bağlı değilse program çalışmasın, bağlanınca otomatik gelen kanalla çalışsın" dedi. sounddevice aygıtları ilk sorguda cache'lediği için çalışırken takılan mikrofon yeniden başlatmadan görünmez → cache tazeleme şart.
 
+## [2026-07-03] Hot-plug yoklaması: stream açıkken PortAudio'ya dokunulmaz
+
+**Ne:** `_poll_mic` iki moda ayrıldı — mikrofon yokken `refresh_devices()` (cache tazele) + ara; mikrofon varken sadece callback-akışı sağlık kontrolü (`stream_alive()`). Ek olarak transkript öncesi peak normalizasyon + RMS sessizlik kapısı eklendi.
+**Neden — denedik olmadı (her poll'da refresh):** `sd._terminate()/_initialize()` aktif InputStream'i sessizce öldürüyor (repro: refresh öncesi 66 callback/2sn, sonrası 0). Uygulama açıldıktan 2 sn sonra mikrofon fiilen kopuyordu — canlı testteki "kayıt 0.5 sn + RMS≈0" bug'ının kök nedeni. Callback zaman damgası hem stream ölümünü hem fiziken çekilen mikrofonu tek mekanizmayla yakalar. Normalizasyon: kablosuz mikrofon kısık gelebiliyor (konuşma RMS ~0.009); sessizlik kapısı: verici kapalıyken normalize edilmiş gürültü whisper'da halüsinasyon üretir.
+
 ## [2026-07-03] LLM temizlik modeli: qwen3:4b → qwen2.5:3b-instruct, varsayılan KAPALI
 
 **Ne:** LLM post-process modeli qwen3:4b'den qwen2.5:3b-instruct'a geçti; chat endpoint (`/api/chat`) + `keep_alive` kullanılıyor. LLM varsayılan olarak KAPALI başlıyor, menüden manuel açılır.

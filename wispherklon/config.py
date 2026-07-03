@@ -19,6 +19,14 @@ PRE_ROLL_SEC = 0.5            # tuşa basmadan önceki ses de dahil edilir
 MAX_RECORD_SEC = 120          # bellek koruması; aşarsa eldeki ses işlenir
 MIN_RECORD_SEC = 0.5          # bundan kısa basmalar transkript edilmez (halüsinasyon filtresi)
 
+# --- Ses ön-işleme ---
+# Kablosuz mikrofonun seviyesi çok düşük gelebiliyor (canlı test: konuşma RMS ~0.009).
+# Transkript öncesi peak normalizasyon cılız sesi whisper'ın rahat çözdüğü seviyeye çeker.
+NORMALIZE_PEAK = 0.95        # ses bu tepe değere ölçeklenir
+SILENCE_RMS = 0.0002         # bunun altı "ses yok" sayılır — normalize/transkript edilmez
+                             # (halüsinasyon önlemi; boş oda ~0.0003-0.0008 ölçüldü ama
+                             # konuşma yoksa zaten transkript boş/halüsinasyon çıkar)
+
 # --- Whisper ---
 LANGUAGE = "tr"              # dil sabit, otomatik algılama yok
 # Noktalama tutarlılığı hilesi: düzgün noktalamalı örnek cümle.
