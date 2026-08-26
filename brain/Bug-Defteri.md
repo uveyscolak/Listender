@@ -1,4 +1,4 @@
-# WISPHERKLON — Bug Defteri
+# SCRIBEME — Bug Defteri
 **Açıldı:** 2026-07-03 · **Bağlı:** [[Context]]
 
 Bilinen sorunlar, geçici çözümler, kök nedenler.

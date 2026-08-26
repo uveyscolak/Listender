@@ -92,7 +92,7 @@ def ollama_serving() -> bool:
 def start_ollama_if_installed():
     """Ollama kuruluysa ve servis ayakta değilse arka planda başlat.
 
-    v1'de bu işi Wispherklon.command launcher'ı yapıyordu; .app'te
+    v1'de bu işi ScribeMe.command launcher'ı yapıyordu; .app'te
     launcher olmadığı için açılışta uygulama üstlenir. Kurulu değilse
     sessizce geçer — LLM zaten opsiyonel.
     """

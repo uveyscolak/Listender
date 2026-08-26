@@ -1,8 +1,10 @@
-# WISPHERKLON — Claude El Kitabı
+# SCRIBEME — Claude El Kitabı
+
+> **Konuşma tarzı (her zaman, her modda):** Basit ve akıcı bir Türkçeyle, tam cümlelerle konuş. Telgraf dili, kısaltma yığını ve sembol (→ ✓ ·) kullanma. Cevabın uzunluğu sorunun ağırlığına uysun: basit soruya bir iki cümle yeter; karmaşık konuda uzun cevap normal, ama gereksiz detay ve yan bilgi ekleme — kullanıcı detay isterse sorar. Başlık, tablo ve madde işaretini sadece gerçekten liste gereken yerde kullan; normal cevap düz yazıdır. Rapor istendiğinde detaylı yazabilirsin, günlük konuşmada yazma.
 
 Wispr Flow'un tamamen yerel/offline klonu: macOS menü barında yaşayan Türkçe sesli dikte asistanı. Sağ Option'a basılı tutup konuş — whisper.cpp sesi yazıya döker, dolgular temizlenir, metin aktif uygulamanın imlecine yazılır. Ses makineden çıkmaz.
 
-**Beyin:** `./brain/` · **Repo:** https://github.com/uveyscolak/Wispherklon · **Stack:** Python 3 (pywhispercpp, sounddevice, pynput, rumps, pyobjc) + opsiyonel Ollama/Qwen3-4B · **Deploy:** lokal macOS menü barı uygulaması (M4, 16 GB)
+**Beyin:** `./brain/` · **Repo:** https://github.com/uveyscolak/ScribeMe · **Stack:** Python 3 (pywhispercpp, sounddevice, pynput, rumps, pyobjc) + opsiyonel Ollama/Qwen3-4B · **Deploy:** lokal macOS menü barı uygulaması (M4, 16 GB)
 
 ---
 

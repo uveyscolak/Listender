@@ -4,15 +4,21 @@ from pathlib import Path
 
 # --- Model ---
 # VidScribe'ın indirdiği dosya VARSA paylaşılır (bu makinede öyle); yoksa model
-# Wispherklon'un kendi klasörüne indirilir — dağıtılan .app yabancı makinede
+# ScribeMe'nin kendi klasörüne indirilir — dağıtılan .app yabancı makinede
 # "VidScribe" klasörü oluşturmasın.
 MODEL_NAME = "large-v3-turbo"
 MODEL_URL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-{name}.bin"
 
-# Wispherklon kendi verisini burada tutar (model, log, ayar vb.)
-APP_SUPPORT_DIR = Path.home() / "Library" / "Application Support" / "Wispherklon"
+# ScribeMe kendi verisini burada tutar (model, log, ayar vb.)
+APP_SUPPORT_DIR = Path.home() / "Library" / "Application Support" / "ScribeMe"
 MODELS_DIR = APP_SUPPORT_DIR / "models"
 VIDSCRIBE_MODELS_DIR = Path.home() / "Library" / "Application Support" / "VidScribe" / "models"
+
+# Eski isimden göç (Wispherklon → ScribeMe, 2026-08-26): v2 ve öncesi verisini
+# "Wispherklon" klasöründe tutuyordu. Yeniden adlandırmada ~1.5 GB'lık model
+# boşuna yeniden inmesin diye eski klasör bir kez yeni ada taşınır.
+# (bkz. brain/Kararlar 2026-08-26)
+LEGACY_APP_SUPPORT_DIR = Path.home() / "Library" / "Application Support" / "Wispherklon"
 
 # --- Ses ---
 SAMPLE_RATE = 16_000          # whisper.cpp'in beklediği örnekleme
@@ -105,3 +111,22 @@ def model_path() -> Path:
     if vidscribe.exists():
         return vidscribe
     return MODELS_DIR / name
+
+
+def migrate_legacy_data_dir() -> bool:
+    """Eski Wispherklon veri klasörünü ScribeMe adına taşı — açılışta bir kez.
+
+    Yeni klasör zaten varsa hiç dokunmaz (göç yapılmış ya da temiz kurulum).
+    Taşıma başarısız olursa sessizce geçilir: model bulunamazsa yeniden iner,
+    yani en kötü durumda maliyet indirme süresidir, veri kaybı değil.
+    """
+    try:
+        if APP_SUPPORT_DIR.exists() or not LEGACY_APP_SUPPORT_DIR.is_dir():
+            return False
+        APP_SUPPORT_DIR.parent.mkdir(parents=True, exist_ok=True)
+        LEGACY_APP_SUPPORT_DIR.rename(APP_SUPPORT_DIR)
+        print(f"[göç] {LEGACY_APP_SUPPORT_DIR} → {APP_SUPPORT_DIR}", flush=True)
+        return True
+    except Exception as e:
+        print(f"[göç] atlandı: {e!r}", flush=True)
+        return False

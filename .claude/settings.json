@@ -5,10 +5,23 @@
       "Bash(git commit -m 'kurulum: SessionStart hook \\(settings.json\\) *)",
       "Bash(git push *)",
       "Bash(python3 -c \"import json; d=json.load\\(open\\('.claude/settings.json'\\)\\); print\\('geçerli JSON —', list\\(d.keys\\(\\)\\)\\)\")",
-      "Bash(git commit -m 'kurulum: settings.json — izinler + SessionStart hook birleştirildi *)"
+      "Bash(git commit -m 'kurulum: settings.json — izinler + SessionStart hook birleştirildi *)",
+      "Read(//Users/minvaltaki/Documents/Claude/Video Indir/app/**)"
     ],
     "additionalDirectories": [
       "/Users/minvaltaki/Documents/Claude/Wispherklon/.claude"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '=== Kimlik (kim olduğun) ===' && cat '/Users/minvaltaki/Library/Mobile Documents/iCloud~md~obsidian/Documents/Obsidian/KİŞİSEL/Kimlik.md' 2>/dev/null && echo '' && echo '=== brain/Context.md (proje durumu) ===' && cat \"$CLAUDE_PROJECT_DIR/brain/Context.md\" 2>/dev/null"
+          }
+        ]
+      }
     ]
   }
 }

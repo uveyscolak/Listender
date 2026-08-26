@@ -1,4 +1,4 @@
-# WISPHERKLON — PRD
+# SCRIBEME — PRD
 
 **Yazıldı:** 2026-07-03 · **Mod:** hızlı · **Bağlı:** [[Context]]
 
@@ -88,12 +88,37 @@ Sorulamadan varsayılanlar (sonradan teyit edilebilir):
 - launchd ile açılışta otomatik başlatma (v3 adayı).
 - App Store dağıtımı.
 
+## Ek — ScribeMe yeniden adlandırma + DMG dağıtımı (2026-08-26)
+
+**Problem:** İki ayrı ihtiyaç aynı işte birleşti. (1) "Wispherklon" adı türetilmiş ve zor — proje artık dışarıya dağıtılan bir uygulama olduğu için taşınabilir bir isim gerekiyor. (2) v2'nin dağıtım artefaktı ZIP'ti; indiren kullanıcı arşivi açıp klasörü bulup uygulamayı taşımak zorunda kalıyor, macOS'ta beklenen dağıtım formatı ise DMG.
+
+**Çözüm:**
+- **Ad ScribeMe** (bkz. Kararlar [2026-08-26] yeniden adlandırma). Kod, Python paketi (`scribeme/`), bundle kimliği, launcher, README, GitHub reposu ve yerel klasör dahil her yer. Sürüm v3.0.0.
+- **Veri klasörü göçü:** `config.migrate_legacy_data_dir()` açılışta bir kez eski `Wispherklon` klasörünü yeni ada taşır — ~1.5 GB model yeniden inmez.
+- **DMG dağıtımı** (bkz. Kararlar [2026-08-26] dağıtım formatı): `build.sh` py2app → ad-hoc imza → `create-dmg` zincirini yürütür, çıktı `dist/ScribeMe-<sürüm>.dmg`. İçinde `ScribeMe.app` + `Applications` kısayolu + `kur.command`. Sürüm tek kaynaktan (`setup.py` plist) okunur.
+- **İzin gerçeği kabul edildi:** bundle kimliği değiştiği için TCC izinleri sıfırlanır; README'de "Wispherklon'dan geçiş" bölümü ve `kur.command` içindeki uyarı bunu açıkça anlatır.
+
+**Kabul kriterleri (v3):**
+- [x] Kaynakta, bundle kimliğinde ve kullanıcıya görünen her metinde ad ScribeMe *(kasıtlı geçiş notları hariç)*
+- [x] `build.sh` tek komutla `.app` + `.dmg` üretir; DMG'de app, kur.command ve Applications kısayolu var, ad-hoc imza geçerli
+- [x] Eski veri klasörü otomatik taşınır, model yeniden inmez *(canlı doğrulandı 2026-08-26: 1.6 GB dosya yerinde kaldı)*
+- [x] .app DMG'den /Applications'a kurulup başlar *(canlı doğrulandı 2026-08-26)*
+- [ ] İzinler yeniden verildikten sonra uçtan uca canlı dikte çalışır
+- [ ] GitHub reposu ScribeMe adında, v3.0.0 release'inde DMG indirilebilir
+
+**Kapsam dışı (v3):**
+- İmzalı + notarize .app (Apple Developer hesabı hâlâ yok — v2 kapsam dışı maddesi aynen geçerli).
+- DMG'ye özel arka plan görseli / uygulama ikonu tasarımı.
+- Otomatik güncelleme, launchd ile açılışta başlatma, App Store.
+- 2026-07-23 denetim raporundaki düzeltmeler ([[Denetim-2026-07-23]]) — ayrı iş, tek tek onayla yapılacak.
+
 ## Değişiklik Notları
 
 > Append-only. Yön/kapsam değiştiğinde: `[YYYY-AA-GG] ne değişti — bkz. Kararlar [tarih]`. Gövde sessizce yeniden yazılmaz.
 
 - [2026-07-03] Kapsam genişletildi: "imzalı .app paketleme / py2app" (v1'de Kapsam Dışı → v2 adayıydı) bilinçli olarak sonraki oturumun hedefi yapıldı — indirilebilir/dağıtılabilir uygulama. Kullanıcı isteği. Mini-PRD döngüsü sonraki oturumda işlenecek; ayrıntılı kabul kriterleri o zaman `## Ek — paketleme` olarak yazılacak.
 - [2026-07-03] Mini-PRD işlendi → `## Ek — Paketleme` eklendi. Paketleme yöntemi imzalı .app DEĞİL, **ad-hoc imzasız .app + tek komutluk karantina-kaldırma** olarak netleşti (Apple Developer hesabı yok). Kullanıcı API anahtarı gömülmeyecek; LLM indiren PC'de yerel çekilir — bkz. Kararlar [2026-07-03] paketleme.
+- [2026-08-26] Proje adı **Wispherklon → ScribeMe** olarak değişti ve dağıtım formatı ZIP'ten **DMG**'ye geçti (v3.0.0). Mini-PRD döngüsü işletildi → `## Ek — ScribeMe yeniden adlandırma + DMG dağıtımı` eklendi. Bundle kimliği değiştiği için macOS izinlerinin sıfırlanması bilinçli kabul edilen bedeldir — bkz. Kararlar [2026-08-26].
 
 ---
 [[Context]] — ana hub

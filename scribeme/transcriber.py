@@ -30,7 +30,7 @@ class Transcriber:
         path.parent.mkdir(parents=True, exist_ok=True)
         tmp = path.with_suffix(".indiriliyor")
         url = config.MODEL_URL.format(name=config.MODEL_NAME)
-        req = urllib.request.Request(url, headers={"User-Agent": "Wispherklon"})
+        req = urllib.request.Request(url, headers={"User-Agent": "ScribeMe"})
         with urllib.request.urlopen(req, timeout=30) as resp, open(tmp, "wb") as out:
             total = int(resp.headers.get("Content-Length") or 0)
             done = 0

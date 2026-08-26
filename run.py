@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Wispherklon giriş noktası."""
+"""ScribeMe giriş noktası."""
 
 import sys
 
@@ -8,23 +8,23 @@ def _redirect_output_if_bundled():
     """Paketli .app'te (tty yok) tüm print/traceback'i teşhis loguna akıt.
 
     Finder'dan açılan uygulamanın stdout'u kaybolur — hata teşhisi için
-    /tmp/wispherklon.log tek pencere.
+    /tmp/scribeme.log tek pencere.
     """
     try:
         if sys.stdout is None or not sys.stdout.isatty():
             # encoding ŞART: Finder'dan açılan .app'te yerel C/ASCII'dir —
             # Türkçe karakterli print UnicodeEncodeError ile worker thread'i
             # öldürüyordu (2026-07-03, dikteyi sessizce kıran bug).
-            log = open("/tmp/wispherklon.log", "a", buffering=1,
+            log = open("/tmp/scribeme.log", "a", buffering=1,
                        encoding="utf-8", errors="replace")
             sys.stdout = sys.stderr = log
-            print("--- Wispherklon başlıyor ---", flush=True)
+            print("--- ScribeMe başlıyor ---", flush=True)
     except Exception:
         pass
 
 
 if __name__ == "__main__":
     _redirect_output_if_bundled()
-    from wispherklon.app import main
+    from scribeme.app import main
 
     main()

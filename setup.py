@@ -18,11 +18,11 @@ from setuptools import setup
 APP = ["run.py"]
 
 PLIST = {
-    "CFBundleName": "Wispherklon",
-    "CFBundleDisplayName": "Wispherklon",
-    "CFBundleIdentifier": "com.uveyscolak.wispherklon",
-    "CFBundleShortVersionString": "2.0.0",
-    "CFBundleVersion": "2.0.0",
+    "CFBundleName": "ScribeMe",
+    "CFBundleDisplayName": "ScribeMe",
+    "CFBundleIdentifier": "com.uveyscolak.scribeme",
+    "CFBundleShortVersionString": "3.0.0",
+    "CFBundleVersion": "3.0.0",
     "LSUIElement": True,  # menü barı uygulaması: Dock ikonu yok
     "LSMinimumSystemVersion": "13.0",
     # Finder'dan açılan uygulamada yerel C/ASCII'dir — Türkçe karakterli
@@ -30,7 +30,7 @@ PLIST = {
     # 2026-07-03: dikte worker'ı sessizce ölüyordu). UTF-8 modunu zorla:
     "LSEnvironment": {"PYTHONUTF8": "1"},
     "NSMicrophoneUsageDescription": (
-        "Wispherklon, bas-konuş dikte için mikrofonunuzu dinler. "
+        "ScribeMe, bas-konuş dikte için mikrofonunuzu dinler. "
         "Ses hiçbir zaman bu bilgisayardan çıkmaz."
     ),
     "NSHumanReadableCopyright": "© 2026 Üveys Çolak — tamamen yerel dikte",
@@ -40,7 +40,7 @@ OPTIONS = {
     "plist": PLIST,
     # Klasörüyle kopyalanacak paketler (dylib/veri dosyaları dahil):
     "packages": [
-        "wispherklon",
+        "scribeme",
         "pywhispercpp",      # .dylibs/ (libwhisper, libggml-metal…) içinde
         "_sounddevice_data",  # portaudio-binaries/libportaudio.dylib içinde
         "rumps",
@@ -66,7 +66,7 @@ OPTIONS = {
 }
 
 setup(
-    name="Wispherklon",
+    name="ScribeMe",
     app=APP,
     options={"py2app": OPTIONS},
     setup_requires=["py2app"],

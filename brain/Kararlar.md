@@ -1,6 +1,19 @@
-# WISPHERKLON — Karar Günlüğü
+# SCRIBEME — Karar Günlüğü
 
 > NEDEN'in tek evi. Append-only. Her karar: tarih + ne + neden (+ varsa "denedik olmadı"). Eskiler silinmez.
+
+## [2026-08-26] Proje adı Wispherklon → **ScribeMe**
+
+**Ne:** Uygulama, Python paketi, bundle kimliği (`com.uveyscolak.wispherklon` → `com.uveyscolak.scribeme`), GitHub reposu ve yerel çalışma klasörü ScribeMe adına geçti. Sürüm v3.0.0. Yazım "ScribeMe" (camel case) seçildi — kullanıcının ilk yazdığı "Scripeme" değil; "scribe" (katip) kökü dikte uygulaması için anlamlı ve okunaklı.
+**Neden:** "Wispherklon" türetilmiş, yazması ve söylemesi zor bir ad; proje artık dışarıya dağıtılan bir uygulama olduğu için taşınabilir bir isim gerekti. Karar kullanıcıya seçimli soruldu, ScribeMe seçildi.
+**Kabul edilen bedel — izinler sıfırlanır:** macOS TCC izinleri bundle kimliğine bağlı. Kimlik değişince Mikrofon, Giriş İzleme ve Erişilebilirlik izinleri sıfırdan verilir; eski "Wispherklon" satırları listelerde ölü kayıt olarak kalır, kullanıcı elle siler. Bundan kaçış yok, bilinçli kabul edildi.
+**Kaçınılan bedel — model yeniden inmez:** `config.migrate_legacy_data_dir()` açılışta bir kez `~/Library/Application Support/Wispherklon` klasörünü yeni ada taşır. Aksi halde ~1.5 GB model boşuna yeniden inerdi. Göç başarısız olursa sessizce geçilir — en kötü durumda maliyet indirme süresi, veri kaybı değil.
+
+## [2026-08-26] Dağıtım formatı: ZIP → **DMG (kur.command içinde)**
+
+**Ne:** GitHub release artefaktı `ScribeMe-<sürüm>.dmg`. İçinde `ScribeMe.app` + `Applications` kısayolu + `kur.command`. `build.sh` py2app → ad-hoc imza → `create-dmg` zincirini yürütür; sürüm numarası tek kaynaktan, `setup.py`'deki `CFBundleShortVersionString`'ten okunur (ikiye bölünmesin).
+**Neden:** DMG macOS'ta uygulama dağıtımının beklenen formatı — indiren kullanıcı çift tıklayıp tanıdık pencereyi görüyor, ZIP'teki "aç, klasörü bul, taşı" adımı kalkıyor. Ama klasik sürükle-bırak TEK BAŞINA yetmiyor: ad-hoc imza yüzünden uygulama karantinaya takılıyor ve macOS Sequoia'dan beri sağ tık→Aç kestirmesi de her durumda çalışmıyor. Bu yüzden v2'de işe yarayan `kur.command` DMG'nin içine kondu — karantinayı kaldırma, /Applications'a taşıma ve izin panellerini açma işini o yapıyor. Sürükle-bırak yolu README'de yedek olarak duruyor.
+**Not:** `--no-internet-enable` bilinçli — Safari'nin "indirince otomatik aç" davranışı karantina/izin akışını karıştırıyor.
 
 ## [2026-07-03] Paketli .app'te Python UTF-8 modu ZORUNLU (dikteyi öldüren bug)
 
