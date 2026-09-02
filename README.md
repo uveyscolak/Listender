@@ -1,83 +1,114 @@
 # Listender
 
-Wispr Flow'un tamamen yerel/offline Türkçe dikte klonu. macOS menü barında yaşar.
-**Sağ Option (⌥)** tuşuna basılı tut → konuş → bırak. whisper.cpp sesi Türkçe'ye
-çevirir, dolgular temizlenir, metin aktif uygulamanın imlecine yazılır. **Ses makineden çıkmaz.**
+Wispr Flow'un tamamen yerel Türkçe dikte klonu. macOS menü çubuğunda yaşar.
+**Sağ Option (⌥)** tuşuna basılı tut, konuş, bırak — söylediğin metin aktif
+uygulamanın imlecine yazılır. **Ses bilgisayardan hiç çıkmaz**, internet gerekmez.
 
-## Kurulum (indirilen .app — önerilen)
+Native Swift uygulaması. Whisper large-v3-turbo modelini WhisperKit üzerinden
+Apple Silicon'ın Neural Engine'inde koşturur.
 
-> Repo klonluysa en kısası: [`Kurulum/kur.command`](Kurulum/kur.command) dosyasına
-> **çift tıkla** — karantina + Uygulamalar'a taşıma + izin panellerini açma dahil
-> her şeyi kendisi yapar. Aşağıdaki adımlar elle kurulum içindir.
+## Gereksinimler
 
-1. [Releases](https://github.com/uveyscolak/Listender/releases) sayfasından
-   `Listender.zip`'i indir ve aç, `Listender.app`'i **Uygulamalar** klasörüne taşı.
-2. Terminal'i aç (⌘-boşluk → "Terminal") ve şu **tek komutu** yapıştır:
+- macOS 14 (Sonoma) veya üzeri
+- Apple Silicon önerilir (Intel'de model CPU'da koşar, dikte yavaşlar)
+- Xcode gerekmez; kurulum script'i Command Line Tools'u gerekirse kendi kurar
 
-   ```bash
-   xattr -dr com.apple.quarantine /Applications/Listender.app
-   ```
+## Kurulum
 
-   > Neden? Uygulama imzasız (Apple Developer hesabı yok — 99 $/yıl). macOS,
-   > internetten inen imzasız uygulamaları karantinaya alır; bu komut karantinayı
-   > kaldırır. Kod açık — ne çalıştığını [buradan](https://github.com/uveyscolak/Listender) inceleyebilirsin.
-
-3. `Listender.app`'i çift tıkla → menü barında ⏳ / 🎙️ ikonu belirir.
-4. Aşağıdaki **izinleri** ver (bir kez) ve uygulamayı yeniden başlat.
-
-Whisper modeli (`ggml-large-v3-turbo.bin`, ~1.5 GB) **ilk açılışta bir kez**
-otomatik indirilir (menü barındaki durum satırında ilerlemeyi görürsün).
-Sonrası tamamen offline çalışır.
-
-## macOS İzinleri (ilk çalıştırmada bir kez)
-
-**Sistem Ayarları → Gizlilik ve Güvenlik** — üçünde de listede **Listender**'u işaretle
-(listede yoksa `+` ile Uygulamalar'dan ekle). İzinlerden sonra uygulamayı yeniden başlat.
-
-| İzin | Ne için | Nerede |
-|---|---|---|
-| **Mikrofon** | Sesi yakalamak | Gizlilik → Mikrofon (ilk kayıtta macOS kendisi sorar) |
-| **Giriş İzleme** (Input Monitoring) | Sağ ⌥ tuşunu dinlemek | Gizlilik → Giriş İzleme |
-| **Erişilebilirlik** (Accessibility) | Cmd-V ile metni yazmak | Gizlilik → Erişilebilirlik |
-
-## Opsiyonel — LLM temizliği (Ollama)
-
-Noktalama/akıcılık düzeltmesi için yerel LLM. **Gerekli değil** — uygulama LLM'siz
-de tam çalışır (regex temizliği her zaman açık). Menüden **LLM temizliği**'ne
-tıkla: Ollama kurulu değilse indirme sayfasına yönlendirir, kuruluysa modeli
-(~2.5 GB, bir kez) senin onayınla indirir. Her şey yerel — hiçbir veri dışarı çıkmaz.
-
-## Menü
-
-- **🎙️ boşta · 🔴 kayıt · ✍️ işleniyor · ⏳ yükleniyor · 🚫 mikrofon yok**
-- **LLM temizliği (Ollama)** — aç/kapa
-- **Çıkış**
-
-## Geliştirici kurulumu (kaynaktan)
+Repo özel olduğu için önce klonlanır:
 
 ```bash
-python3.14 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-./Listender.command          # çalıştır
+gh repo clone uveyscolak/Listender
+cd Listender && ./scripts/install.sh
 ```
 
-İzin notu: kaynaktan çalıştırırken izinler launcher'ı başlatan uygulamaya
-(genelde **Terminal**) bağlanır — hep `Listender.command` üzerinden başlat.
+Kaynak kendi makinende derlenir, `/Applications/Listender.app` olarak kurulur.
+İmzasız bir uygulama indirmediğin için Gatekeeper uyarısı çıkmaz.
 
-### .app build almak
+## İzinler (bir kez)
+
+Sistem Ayarları, Gizlilik ve Güvenlik altında üçü de gerekli:
+
+| İzin | Ne için |
+|---|---|
+| **Giriş İzleme** | Sağ ⌥ tuşunu duymak |
+| **Erişilebilirlik** | Metni imlecin olduğu yere yazmak |
+| **Mikrofon** | Sesi yakalamak (ilk kayıtta macOS kendisi sorar) |
+
+Erişilebilirlik izni yoksa metin **kaybolmaz**: panoda bırakılır, Cmd-V ile
+kendin yapıştırabilirsin. Menü çubuğundaki durum satırı bunu söyler.
+
+## İlk açılış
+
+İki tek seferlik bekleme var:
+
+1. Whisper modeli iner (~1,5 GB)
+2. macOS modeli bu uygulama için derler (~2 dakika)
+
+Sonraki açılışlarda model yüklemesi birkaç saniye sürer. Durum menü çubuğunda görünür.
+
+## Kullanım
+
+Menü çubuğundaki ikon durumu gösterir:
+
+| İkon | Anlamı |
+|---|---|
+| 🎙️ | Hazır — sağ ⌥ ile bas-konuş |
+| 🔴 | Kayıt sürüyor |
+| ✍️ | Yazıya çevriliyor |
+| ⏳ | Model hazırlanıyor |
+| 🚫 | Mikrofon yok |
+
+Yarım saniyeden kısa basmalar yok sayılır (yanlışlıkla basma filtresi). Tuşa
+basmadan önceki yarım saniye de kayda girer, böylece ilk hece yutulmaz.
+
+## Metin temizliği
+
+Transkript ham haliyle yazılmaz, iki aşamadan geçer:
+
+1. **Regex** (her zaman): "eee/ıı" gibi dolgular silinir; "yani/hani/şey/işte"
+   yalnızca cümle başında ve ardışık tekrarda temizlenir — cümle ortasında gerçek
+   anlam taşıyabildikleri için korunurlar. Boşluk ve noktalama düzeltilir.
+   Whisper'ın sessizlikte uydurduğu bilinen kalıplar ("Altyazı M.K.", "abone ol")
+   atılır.
+2. **Ollama** (opsiyonel, varsayılan kapalı): menüden açılır, noktalama ve
+   akıcılığı düzeltir. Kurulu değilse uygulama tam çalışır.
+
+LLM varsayılan kapalı, çünkü denenen 4B sınıfı modeller hâlâ kişi kayması
+yapabiliyor ("verdim" yerine "verildi"). Bilinçli olarak açılır.
+
+## Geliştirme
 
 ```bash
-.venv/bin/pip install -r requirements-build.txt
-./build.sh                     # dist/Listender.app + dist/Listender.zip
+swift build -c release
+swift test                                              # 25 test, 9 suite
+.build/release/Listender listender-temizlik-smoke       # temizlik hattı
+.build/release/Listender listender-ses-testi ses.wav    # model + transkript
+./scripts/make-app.sh                                   # /Applications'a paketle
 ```
 
-Build py2app ile alınır, ad-hoc imzalanır (`codesign -s -`). Model bundle'a
-gömülmez — .app ~75 MB kalır.
+Yapı: bütün mantık `Sources/ListenderKit/` içinde (test edilebilir kütüphane),
+`Sources/Listender/main.swift` yalnız giriş noktası.
+
+Türkçe test sesi üretmek için:
+
+```bash
+say -v Yelda -o ses.wav --data-format=LEF32@16000 "Bugün müşteriyle görüştük."
+```
 
 ## Nasıl çalışır
 
-`sounddevice` (16 kHz mono, ~0.5 sn pre-roll) → `pywhispercpp` large-v3-turbo (dil `tr`,
-açılışta bir kez yüklenir, sıcak tutulur) → regex dolgu temizliği (+opsiyonel Ollama) →
-`NSPasteboard` + Quartz Cmd-V enjeksiyon (eski pano geri yüklenir).
+`AVAudioEngine` (donanım örneklemesinden 16 kHz mono'ya dönüştürülür, ~0,5 sn
+pre-roll halka tamponu) → WhisperKit large-v3-turbo (dil `tr` sabit, model
+açılışta bir kez yüklenip sıcak tutulur) → regex temizliği (artı opsiyonel
+Ollama) → `NSPasteboard` ve Cmd-V enjeksiyonu (eski pano geri yüklenir).
 
-Detaylı hedef/karar/durum: [`brain/`](brain/).
+Ses hiçbir aşamada diske yazılmaz.
+
+## Bilinen sınırlar
+
+- İlk açılıştaki CoreML derlemesi her yeniden kurulumda tekrarlanır.
+- Ad-hoc imza: uygulama yeniden derlendiğinde imza değiştiği için macOS
+  izinleri sıfırlayabilir.
+- Ölçüm (M2 Pro): 6 saniyelik ses 0,8 saniyede çözülüyor; model yüklemesi
+  ilk açılışta ~135 sn, sonrasında ~7 sn.

@@ -1,2 +1,0 @@
-# Paketleme (build) bağımlılıkları — çalışma zamanı için requirements.txt yeter.
-py2app==0.28.10

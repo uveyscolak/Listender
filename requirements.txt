@@ -1,6 +1,0 @@
-pywhispercpp==1.5.0
-sounddevice==0.5.5
-pynput==1.8.2
-rumps==0.4.0
-pyobjc==12.2.1
-numpy==2.5.0

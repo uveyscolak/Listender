@@ -2,6 +2,87 @@
 
 > NEDEN'in tek evi. Append-only. Her karar: tarih + ne + neden (+ varsa "denedik olmadı"). Eskiler silinmez.
 
+## [2026-09-02] Python'dan Swift'e — motor whisper.cpp değil WhisperKit
+
+**Ne:** Uygulama sıfırdan Swift/AppKit ile yeniden yazıldı (Droper'ın paket düzeni:
+`ListenderKit` kütüphanesi + ince executable). Whisper motoru olarak **WhisperKit**
+(CoreML) seçildi, model `openai_whisper-large-v3-v20240930_turbo`.
+
+**Neden whisper.cpp değil — araştırıldı, kapalı çıktı:** whisper.cpp SwiftPM desteğini
+bırakmış. Son manifest v1.7.4'te ve o da `.systemLibrary` — yani `brew install whisper-cpp`
+ile ayrıca kurulum ve pkg-config gerektiriyor. v1.7.6 ve sonrasında (güncel v1.9.3)
+`Package.swift` hiç yok, hazır xcframework de release'lerde yayınlanmıyor. Kalan yollar
+(kaynağı repoya gömmek, kurulumda CMake ile derlemek) tek başına birer proje.
+
+**WhisperKit ölçüldü (M2 Pro, 16 GB):** 6 saniyelik Türkçe ses **0,8 saniyede** ve
+kusursuz çözülüyor. PRD 5-10 saniyelik dikteyi 2 saniyede istiyordu, rahat geçiyor.
+
+**Yan fayda:** ggml model dosyası yerine CoreML kullanıldığı için Neural Engine devrede.
+
+## [2026-09-02] WhisperKit'te `prewarm: true, load: true` ŞART
+
+**Ne:** `WhisperKitConfig`'te bu iki bayrak açık.
+
+**Neden — ölçüldü:** Bayraklar olmadan `tiny` model 6 saniyelik sesi **8 saniyede**
+çözüyordu, `large-v3-turbo` ise **135 saniyede**. Bayraklar açıkken aynı ses sırasıyla
+**0,18** ve **0,83** saniye. Yani modeli önden yükletmezsen çözme çağrısının içinde
+yükleniyor ve her şey CPU hızına düşüyor. Uygulamanın "model açılışta bir kez yüklenir,
+sıcak tutulur" tasarımı zaten bunu gerektiriyordu; ölçüm bunu sayıyla doğruladı.
+
+## [2026-09-02] `initial_prompt` karşılığı KULLANILAMIYOR — kaldırıldı
+
+**Ne:** Python sürümü noktalama tutarlılığı için whisper'a örnek cümle (`initial_prompt`)
+veriyordu. Swift sürümünde bu yok.
+
+**Neden — denedik olmadı:** WhisperKit'te karşılığı `DecodingOptions.promptTokens`.
+Verilince **transkript boş dönüyor**. Sebep WhisperKit'in kendi kaynağında not düşülmüş
+(`TextDecoder.swift`: "allow prefill cache to be used with prompt tokens, currently breaks
+if it starts at non-zero index") — prompt ile prefill önbelleği birlikte çalışmıyor.
+Özel token süzme değil (onu WhisperKit zaten yapıyor), yapısal bir uyumsuzluk.
+
+**Sonuç:** Gerek de kalmadı — large-v3-turbo kendiliğinden düzgün noktalıyor
+("Bugün müşteriyle görüştük, sipariş onaylandı."). WhisperKit bunu düzeltirse yeniden bakılır.
+
+## [2026-09-02] Türkçe küçük harf: `lowercased()` YETMİYOR (sessiz bug)
+
+**Ne:** `Temizleyici.turkceKucult` ve `turkceDesen` yazıldı; halüsinasyon karşılaştırması
+ve dolgu desenleri bunları kullanıyor.
+
+**Neden:** Swift'in (ve Python'un) `lowercased()`'i İngilizce kuralı uygular: "İ" harfini
+"i" + birleşen nokta (U+0307) yapar, "I" harfini de "ı" değil "i" yapar. Bu yüzden
+halüsinasyon filtresi cümle başındaki büyük harfli kalıpları ("İzlediğiniz için teşekkür")
+**hiç yakalamıyordu** — whisper çıktısı tam da böyle büyük harfle başlıyor.
+`caseInsensitive` regex bayrağı da i/ı çiftini doğru eşleştirmiyor, o yüzden desenler
+her harfin Türkçe büyük karşılığını da kabul edecek şekilde üretiliyor.
+
+**Not:** Aynı kusur Python sürümünde de vardı, kimse fark etmemişti; Swift'e geçerken
+yazılan test yakaladı.
+
+## [2026-09-02] Bağımlılık kaynak paketleri .app'e KOPYALANMIYOR
+
+**Ne:** `make-app.sh` `.build/release/*.bundle` dosyalarını pakete koymuyor.
+
+**Neden:** İki tane var — swift-crypto'nunki yalnız bir gizlilik bildirimi,
+swift-transformers'ınki kullanılmayan gpt2/t5 tokenizer yedekleri. SwiftPM'in erişimcisi
+onları `Bundle.main.bundleURL/<ad>.bundle` yolunda arıyor, yani .app'in kökünde; oraya
+konunca `codesign` "unsealed contents present in the bundle root" deyip **imzayı geçersiz
+kılıyor** (doğrulama exit 1). İmza geçersiz olunca da macOS izinleri (Giriş İzleme,
+Erişilebilirlik) güvenilmez hale gelir — bu uygulama için kabul edilemez.
+`Contents/Resources/`'a koymak işe yaramıyor, erişimci orayı aramıyor.
+
+**Deneyle çözüldü:** Binary tek başına, yanında hiçbir paket yokken geçici bir klasöre
+kopyalanıp `listender-ses-testi` ile koşturuldu — model yükleme ve transkript sorunsuz.
+Yani bu paketlere çalışma anında hiç dokunulmuyor. Kopyalanmıyorlar, imza geçerli.
+
+## [2026-09-02] Teşhis logu /tmp'den kullanıcı klasörüne taşındı
+
+**Ne:** Log artık `~/Library/Logs/Listender/listender.log`. Ayrıca dikte metninin kendisi
+varsayılan olarak loglanmıyor (`Gunluk.metin` yalnız karakter sayısını yazar).
+
+**Neden:** 2026-07-23 kod denetiminin gizlilik bulgusu: dikte edilen metinler
+`/tmp/listender.log` dosyasına yazılıyordu ve `/tmp` makinedeki herkese açık.
+
+
 ## [2026-07-03] Paketli .app'te Python UTF-8 modu ZORUNLU (dikteyi öldüren bug)
 
 **Ne:** Üç katman: (1) plist `LSEnvironment: {PYTHONUTF8: "1"}` — bundle'daki tüm Python UTF-8 modunda, (2) `/tmp/listender.log` `encoding="utf-8", errors="replace"` ile açılır, (3) Ollama subprocess'i `encoding="utf-8"`.

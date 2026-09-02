@@ -1,21 +1,19 @@
-# Python
-__pycache__/
-*.py[cod]
-.venv/
-venv/
-*.egg-info/
-dist/
-build/
-
-# macOS
 .DS_Store
+/.build
+/Packages
+xcuserdata/
+DerivedData/
+.swiftpm/
+.netrc
 
-# Ses/model dosyaları repoya girmez
+# Ses ve model dosyaları repoya girmez (model çalışma anında iner)
 *.wav
 *.bin
 
-# Build çıktısı .app repoya girmez — release zip'iyle dağıtılır (kur.command git'te kalır)
-Kurulum/Listender.app/
+# Kişisel çalışma dosyaları — yerelde durur
+/Claude.md
+/.claude/
+/.vscode/
 
-# Claude lokal ayar
-.claude/settings.local.json
+# brain/ bilerek izleniyor: repo özel ve karar geçmişi (Bug-Defteri, Kararlar)
+# aylardır burada birikiyor, yedeği kalsın.
