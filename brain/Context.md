@@ -1,8 +1,8 @@
-# WISPHERKLON — Context
+# LISTENDER — Context
 
 **Durum:** ✅ v1 TAMAM · ✅ v2 YAYINDA — GitHub release v2.0.0, .app'ten canlı dikte geçti  
 **Son güncelleme:** 2026-07-03 · **Son lint:** 2026-07-03  
-**Repo:** https://github.com/uveyscolak/Wispherklon · **Stack:** Python 3.14 (pywhispercpp, sounddevice, pynput, rumps, pyobjc) + opsiyonel Ollama · **Deploy:** lokal macOS menü barı uygulaması (Mac mini, M4, 16 GB)
+**Repo:** https://github.com/uveyscolak/Listender · **Stack:** Python 3.14 (pywhispercpp, sounddevice, pynput, rumps, pyobjc) + opsiyonel Ollama · **Deploy:** lokal macOS menü barı uygulaması (Mac mini, M4, 16 GB)
 
 ## Şu An Nerede
 
@@ -11,11 +11,12 @@
   2. **SIGTRAP crash:** worker thread'den UI güncellemesi menü açıkken çökertiyordu → tüm UI dokunuşları `AppHelper.callAfter` ile ana thread'e (bkz. Kararlar).
   3. **LLM temizliği #2:** qwen2.5:3b elendi (prompt sızıntısı/Çince/kişi kayması); model `qwen3:4b-instruct` + few-shot prompt'a geçti ama 4B sınıfı hâlâ güvenilmez ("verdim→verildi") → **varsayılan KAPALI** kaldı, menüden bilinçli açılır (bkz. Kararlar).
 - **Doğrulama:** 5+ canlı dikte (kullanıcı) + 3 gözetimsiz uçtan uca test (sentetik sağ ⌥ + hoparlörden `say`): kısa basma filtresi, pano geri yükleme (sentinel), **internetsiz tam zincir** (Wi-Fi kapalıyken dikte→enjeksiyon çalıştı).
-- Teşhis logu `/tmp/wispherklon.log` (kayıt RMS/süre, ham transkript, temiz metin, enjeksiyon).
+- Teşhis logu `/tmp/listender.log` (kayıt RMS/süre, ham transkript, temiz metin, enjeksiyon).
 - Elenmiş modeller diskten silindi (2026-07-03): `qwen2.5:3b-instruct` + `qwen3:4b` → ~4.1 GB boşaldı. Kalan tek model: `qwen3:4b-instruct` (kullanımdaki). Elenme gerekçeleri Kararlar'da, tekrar denemeye gerek yok.
 
 ## Sıradaki Adım
 
+0. **🔍 Kod denetimi yapıldı (2026-07-23) — bulgular [[Denetim-2026-07-23]]'te.** Düzeltmeler kullanıcıyla TEK TEK karar verilerek yapılacak, toplu düzeltme YOK. En kritik ikisi: (a) Accessibility izni yoksa dikte metni sessizce kayboluyor (injector güvenlik ağı gerekiyor), (b) dikte metinleri herkese açık /tmp loguna yazılıyor (gizlilik). Tam liste ve "Önce şunları yap" sıralaması raporda.
 1. **✅ v2 paketleme BİTTİ ve YAYINDA (2026-07-03):** py2app + ad-hoc imza + `build.sh` + `Kurulum/kur.command`. Paketli .app'ten uçtan uca canlı dikte GEÇTİ (log kanıtlı). Kritik bug çözüldü: .app'te ASCII locale → Türkçe print worker'ı öldürüyordu (bkz. Kararlar [2026-07-03] UTF-8). Kod commit'lendi (kullanıcı onayıyla, `3187f4e`), **release v2.0.0 yayınlandı**. Kalan pürüz: temiz makinede indirme + ilk-açılış model indirme testi hiç yapılmadı.
 2. **Günlük kullanım gözlemi** — stabilite, farklı uygulamalarda enjeksiyon, izin kalıcılığı (özellikle ad-hoc: rebuild sonrası izinler sıfırlanıyor, canlıda 2 kez yaşandı).
 3. **LLM kalitesi (opsiyonel):** 8B+ model dene; 4B sınıfı yetersiz kanıtlandı.
@@ -37,7 +38,7 @@
 
 [Detay: [[PRD]] Ek — Paketleme]
 
-- [x] GitHub release yayında: **v2.0.0** — `Wispherklon-Kurulum.zip` (kur.command + .app, 27 MB) → https://github.com/uveyscolak/Wispherklon/releases/tag/v2.0.0 *(indiren: zip aç → kur.command sağ tık→Aç → gerisi otomatik; indirme testi başka makinede yapılmadı)*
+- [x] GitHub release yayında: **v2.0.0** — `Listender-Kurulum.zip` (kur.command + .app, 27 MB) → https://github.com/uveyscolak/Listender/releases/tag/v2.0.0 *(indiren: zip aç → kur.command sağ tık→Aç → gerisi otomatik; indirme testi başka makinede yapılmadı)*
 - [x] .app menü barında çalışır, v1 dikte akışı korunur *(canlı dikte log kanıtlı geçti, 2026-07-03)*
 - [x] İlk açılışta Whisper modeli yoksa otomatik iner *(kod hazır; bu makinede VidScribe kopyası kullanıldı — temiz makine testi bekliyor)*; Ollama yoksa menüden yönlendirme + onaylı model indirme var; LLM'siz tam çalışır
 - [x] Kullanıcının API anahtarı / gizli bilgisi .app içinde YOK *(grep taraması temiz)*
@@ -54,3 +55,4 @@
 
 - [[PRD]] — hedef, kapsam, kabul kriterleri, kapsam dışı
 - [[Bug-Defteri]] — açık bug: mikrofon sesi gelmiyor + kayıt kısa (teşhis + sonraki adımlar)
+- [[Denetim-2026-07-23]] — kod denetim raporu: mantık hataları, riskler, öncelik listesi (düzeltmeler tek tek onayla yapılacak)

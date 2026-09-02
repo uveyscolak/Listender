@@ -1,13 +1,13 @@
 #!/bin/bash
-# Wispherklon .app build scripti — py2app + ad-hoc imza + dağıtım zip'i.
+# Listender .app build scripti — py2app + ad-hoc imza + dağıtım zip'i.
 #
 # Kullanım: ./build.sh
-# Çıktı:   dist/Wispherklon.app  +  dist/Wispherklon.zip (GitHub release için)
+# Çıktı:   dist/Listender.app  +  dist/Listender.zip (GitHub release için)
 #
 # Ad-hoc imza (codesign -s -): Apple Developer sertifikası YOK (bilinçli karar,
 # bkz. brain/Kararlar 2026-07-03 paketleme). İndiren kullanıcı Gatekeeper
 # karantinasını tek komutla kaldırır (README'de yazılı):
-#   xattr -dr com.apple.quarantine /Applications/Wispherklon.app
+#   xattr -dr com.apple.quarantine /Applications/Listender.app
 set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -26,7 +26,7 @@ rm -rf build dist
 echo "==> py2app build…"
 "$PY" setup.py py2app 2>&1 | tail -5
 
-APP="dist/Wispherklon.app"
+APP="dist/Listender.app"
 [ -d "$APP" ] || { echo "HATA: $APP üretilemedi"; exit 1; }
 
 echo "==> Ad-hoc imza (codesign -s -)…"
@@ -36,10 +36,10 @@ codesign --verify --deep "$APP" && echo "    imza doğrulandı"
 
 echo "==> Zip (GitHub release)…"
 # ditto: macOS bundle'ları resource fork'larıyla doğru zipler (zip -r DEĞİL).
-ditto -c -k --keepParent "$APP" dist/Wispherklon.zip
+ditto -c -k --keepParent "$APP" dist/Listender.zip
 
 echo
 echo "✅ TAMAM:"
-du -sh "$APP" dist/Wispherklon.zip
+du -sh "$APP" dist/Listender.zip
 echo
 echo "Yerel test: open $APP"

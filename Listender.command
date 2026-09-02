@@ -1,10 +1,10 @@
 #!/bin/bash
-# Wispherklon sabit launcher.
+# Listender sabit launcher.
 # macOS izinleri (Mikrofon, Input Monitoring, Accessibility) izni çağıran
 # BINARY'ye bağlanır. Bu script hep aynı venv python'unu çalıştırır; böylece
 # venv/kod değişse bile izinler bir kez verilir ve kalıcı olur.
 #
-# Çift tıklayarak veya `./Wispherklon.command` ile çalıştır.
+# Çift tıklayarak veya `./Listender.command` ile çalıştır.
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$DIR"

@@ -4,13 +4,13 @@ from pathlib import Path
 
 # --- Model ---
 # VidScribe'ın indirdiği dosya VARSA paylaşılır (bu makinede öyle); yoksa model
-# Wispherklon'un kendi klasörüne indirilir — dağıtılan .app yabancı makinede
+# Listender'un kendi klasörüne indirilir — dağıtılan .app yabancı makinede
 # "VidScribe" klasörü oluşturmasın.
 MODEL_NAME = "large-v3-turbo"
 MODEL_URL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-{name}.bin"
 
-# Wispherklon kendi verisini burada tutar (model, log, ayar vb.)
-APP_SUPPORT_DIR = Path.home() / "Library" / "Application Support" / "Wispherklon"
+# Listender kendi verisini burada tutar (model, log, ayar vb.)
+APP_SUPPORT_DIR = Path.home() / "Library" / "Application Support" / "Listender"
 MODELS_DIR = APP_SUPPORT_DIR / "models"
 VIDSCRIBE_MODELS_DIR = Path.home() / "Library" / "Application Support" / "VidScribe" / "models"
 

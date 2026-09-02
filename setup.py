@@ -18,9 +18,9 @@ from setuptools import setup
 APP = ["run.py"]
 
 PLIST = {
-    "CFBundleName": "Wispherklon",
-    "CFBundleDisplayName": "Wispherklon",
-    "CFBundleIdentifier": "com.uveyscolak.wispherklon",
+    "CFBundleName": "Listender",
+    "CFBundleDisplayName": "Listender",
+    "CFBundleIdentifier": "com.uveyscolak.listender",
     "CFBundleShortVersionString": "2.0.0",
     "CFBundleVersion": "2.0.0",
     "LSUIElement": True,  # menü barı uygulaması: Dock ikonu yok
@@ -30,7 +30,7 @@ PLIST = {
     # 2026-07-03: dikte worker'ı sessizce ölüyordu). UTF-8 modunu zorla:
     "LSEnvironment": {"PYTHONUTF8": "1"},
     "NSMicrophoneUsageDescription": (
-        "Wispherklon, bas-konuş dikte için mikrofonunuzu dinler. "
+        "Listender, bas-konuş dikte için mikrofonunuzu dinler. "
         "Ses hiçbir zaman bu bilgisayardan çıkmaz."
     ),
     "NSHumanReadableCopyright": "© 2026 Üveys Çolak — tamamen yerel dikte",
@@ -40,7 +40,7 @@ OPTIONS = {
     "plist": PLIST,
     # Klasörüyle kopyalanacak paketler (dylib/veri dosyaları dahil):
     "packages": [
-        "wispherklon",
+        "listender",
         "pywhispercpp",      # .dylibs/ (libwhisper, libggml-metal…) içinde
         "_sounddevice_data",  # portaudio-binaries/libportaudio.dylib içinde
         "rumps",
@@ -66,7 +66,7 @@ OPTIONS = {
 }
 
 setup(
-    name="Wispherklon",
+    name="Listender",
     app=APP,
     options={"py2app": OPTIONS},
     setup_requires=["py2app"],

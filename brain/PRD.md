@@ -1,4 +1,4 @@
-# WISPHERKLON — PRD
+# LISTENDER — PRD
 
 **Yazıldı:** 2026-07-03 · **Mod:** hızlı · **Bağlı:** [[Context]]
 
@@ -64,11 +64,11 @@ Sorulamadan varsayılanlar (sonradan teyit edilebilir):
 
 ## Ek — Paketleme / indirilebilir uygulama (2026-07-03)
 
-**Problem:** v1 sabit `Wispherklon.command` launcher script ile çalışıyor — repo klonlanıp elle kuruluyor. Kullanıcı artık GitHub release'inden indirilip çift tıkla açılan, dağıtılabilir bir uygulama istiyor. Ama Apple Developer hesabı ($99/yıl) yok → imzalı+notarize edilmiş .app yolu kapalı. Hedef: imzasız/ad-hoc bir .app ile kullanıcıyı *mümkün olan en az uğraşa* sokmak.
+**Problem:** v1 sabit `Listender.command` launcher script ile çalışıyor — repo klonlanıp elle kuruluyor. Kullanıcı artık GitHub release'inden indirilip çift tıkla açılan, dağıtılabilir bir uygulama istiyor. Ama Apple Developer hesabı ($99/yıl) yok → imzalı+notarize edilmiş .app yolu kapalı. Hedef: imzasız/ad-hoc bir .app ile kullanıcıyı *mümkün olan en az uğraşa* sokmak.
 
 **Çözüm:**
 - **py2app ile ad-hoc imzalı .app** (Apple sertifikası yok; ad-hoc `codesign -s -`). GitHub release'ine `.zip`/`.dmg` olarak konur.
-- **Gatekeeper aşımı — tek komutluk kurulum scripti:** indiren kullanıcı README'deki tek satırlık komutu (`xattr -dr com.apple.quarantine Wispherklon.app` + izin yönlendirme) Terminal'e yapıştırır; sonrası çift tık. İmza gerektirmeyen, dürüst çözüm.
+- **Gatekeeper aşımı — tek komutluk kurulum scripti:** indiren kullanıcı README'deki tek satırlık komutu (`xattr -dr com.apple.quarantine Listender.app` + izin yönlendirme) Terminal'e yapıştırır; sonrası çift tık. İmza gerektirmeyen, dürüst çözüm.
 - **API/gizli anahtar sızdırma YOK:** kullanıcının (Üveys) API anahtarları .app'e gömülmez. İndiren her PC LLM'i *kendi makinesine* çeker — tam yerel felsefesiyle uyumlu.
 - **İlk açılışta otomatik kurulum:** Whisper modeli (large-v3-turbo, ~1.6 GB) yoksa HF'den indirilir (VidScribe kopyası varsa paylaşılır — mevcut mantık). Ollama kuruluysa model çekilir, değilse kullanıcı yönlendirilir. LLM zaten opsiyonel/varsayılan kapalı.
 - **Model .app dışında:** bundle'a gömülmez → .app küçük kalır (~50 MB), ilk açılışta iner.

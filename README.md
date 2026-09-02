@@ -1,4 +1,4 @@
-# Wispherklon
+# Listender
 
 Wispr Flow'un tamamen yerel/offline Türkçe dikte klonu. macOS menü barında yaşar.
 **Sağ Option (⌥)** tuşuna basılı tut → konuş → bırak. whisper.cpp sesi Türkçe'ye
@@ -10,19 +10,19 @@ Wispr Flow'un tamamen yerel/offline Türkçe dikte klonu. macOS menü barında y
 > **çift tıkla** — karantina + Uygulamalar'a taşıma + izin panellerini açma dahil
 > her şeyi kendisi yapar. Aşağıdaki adımlar elle kurulum içindir.
 
-1. [Releases](https://github.com/uveyscolak/Wispherklon/releases) sayfasından
-   `Wispherklon.zip`'i indir ve aç, `Wispherklon.app`'i **Uygulamalar** klasörüne taşı.
+1. [Releases](https://github.com/uveyscolak/Listender/releases) sayfasından
+   `Listender.zip`'i indir ve aç, `Listender.app`'i **Uygulamalar** klasörüne taşı.
 2. Terminal'i aç (⌘-boşluk → "Terminal") ve şu **tek komutu** yapıştır:
 
    ```bash
-   xattr -dr com.apple.quarantine /Applications/Wispherklon.app
+   xattr -dr com.apple.quarantine /Applications/Listender.app
    ```
 
    > Neden? Uygulama imzasız (Apple Developer hesabı yok — 99 $/yıl). macOS,
    > internetten inen imzasız uygulamaları karantinaya alır; bu komut karantinayı
-   > kaldırır. Kod açık — ne çalıştığını [buradan](https://github.com/uveyscolak/Wispherklon) inceleyebilirsin.
+   > kaldırır. Kod açık — ne çalıştığını [buradan](https://github.com/uveyscolak/Listender) inceleyebilirsin.
 
-3. `Wispherklon.app`'i çift tıkla → menü barında ⏳ / 🎙️ ikonu belirir.
+3. `Listender.app`'i çift tıkla → menü barında ⏳ / 🎙️ ikonu belirir.
 4. Aşağıdaki **izinleri** ver (bir kez) ve uygulamayı yeniden başlat.
 
 Whisper modeli (`ggml-large-v3-turbo.bin`, ~1.5 GB) **ilk açılışta bir kez**
@@ -31,7 +31,7 @@ Sonrası tamamen offline çalışır.
 
 ## macOS İzinleri (ilk çalıştırmada bir kez)
 
-**Sistem Ayarları → Gizlilik ve Güvenlik** — üçünde de listede **Wispherklon**'u işaretle
+**Sistem Ayarları → Gizlilik ve Güvenlik** — üçünde de listede **Listender**'u işaretle
 (listede yoksa `+` ile Uygulamalar'dan ekle). İzinlerden sonra uygulamayı yeniden başlat.
 
 | İzin | Ne için | Nerede |
@@ -58,17 +58,17 @@ tıkla: Ollama kurulu değilse indirme sayfasına yönlendirir, kuruluysa modeli
 ```bash
 python3.14 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-./Wispherklon.command          # çalıştır
+./Listender.command          # çalıştır
 ```
 
 İzin notu: kaynaktan çalıştırırken izinler launcher'ı başlatan uygulamaya
-(genelde **Terminal**) bağlanır — hep `Wispherklon.command` üzerinden başlat.
+(genelde **Terminal**) bağlanır — hep `Listender.command` üzerinden başlat.
 
 ### .app build almak
 
 ```bash
 .venv/bin/pip install -r requirements-build.txt
-./build.sh                     # dist/Wispherklon.app + dist/Wispherklon.zip
+./build.sh                     # dist/Listender.app + dist/Listender.zip
 ```
 
 Build py2app ile alınır, ad-hoc imzalanır (`codesign -s -`). Model bundle'a

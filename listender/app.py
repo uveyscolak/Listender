@@ -1,4 +1,4 @@
-"""Wispherklon menü barı uygulaması — orkestrasyon.
+"""Listender menü barı uygulaması — orkestrasyon.
 
 rumps menü barı + pynput global listener. Sağ Option (⌥) basılı tutulunca
 kayıt başlar, bırakılınca: whisper transkript → temizlik → enjeksiyon.
@@ -24,9 +24,9 @@ ICON_PROCESSING = "✍️"
 ICON_NO_MIC = "🚫"          # mikrofon yok — bas-konuş devre dışı
 
 
-class WispherklonApp(rumps.App):
+class ListenderApp(rumps.App):
     def __init__(self):
-        super().__init__("Wispherklon", title=ICON_LOADING, quit_button=None)
+        super().__init__("Listender", title=ICON_LOADING, quit_button=None)
 
         self.recorder = Recorder()
         self.transcriber = Transcriber(status_callback=self._set_status)
@@ -79,7 +79,7 @@ class WispherklonApp(rumps.App):
             self._update_idle_state()
         except Exception as e:
             import traceback
-            traceback.print_exc()  # bundled modda /tmp/wispherklon.log'a düşer
+            traceback.print_exc()  # bundled modda /tmp/listender.log'a düşer
             self._set_status(f"Model hatası: {e}")
             self._set_title("⚠️")
 
@@ -326,7 +326,7 @@ class WispherklonApp(rumps.App):
 
 
 def main():
-    WispherklonApp().run()
+    ListenderApp().run()
 
 
 if __name__ == "__main__":

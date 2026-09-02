@@ -1,4 +1,4 @@
-# WISPHERKLON — Bug Defteri
+# LISTENDER — Bug Defteri
 **Açıldı:** 2026-07-03 · **Bağlı:** [[Context]]
 
 Bilinen sorunlar, geçici çözümler, kök nedenler.
@@ -56,7 +56,7 @@ Zincir aslında DOĞRU çalışıyor: whisper sessizlikte "Altyazı M.K." halüs
 2. **Kayıt sadece 0.5 sn** — kullanıcı tuşu daha uzun tuttuğu halde kayıt 0.5 sn (= sadece pre-roll tamponu kadar). Sağ ⌥ release olayı erken mi geliyor, yoksa `_begin` çağrılmadan `_end` mi işliyor? pynput'ta alt_r press/release davranışı incelenecek.
 
 **KANITLANAN (çalışıyor):**
-- ✅ Enjeksiyon (pano+Cmd-V): izole test edildi, "WISPHERKLON-ENJEKSIYON-TESTI-123" TextEdit'e yazıldı.
+- ✅ Enjeksiyon (pano+Cmd-V): izole test edildi, "LISTENDER-ENJEKSIYON-TESTI-123" TextEdit'e yazıldı.
 - ✅ Erişilebilirlik izni: "not trusted" uyarısı kayboldu.
 - ✅ Whisper motoru: model yükleniyor, transkript üretiyor.
 - ✅ Mikrofon donanımı: izole testte ses geldi (RMS 0.009).

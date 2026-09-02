@@ -1,16 +1,16 @@
-# WISPHERKLON — Karar Günlüğü
+# LISTENDER — Karar Günlüğü
 
 > NEDEN'in tek evi. Append-only. Her karar: tarih + ne + neden (+ varsa "denedik olmadı"). Eskiler silinmez.
 
 ## [2026-07-03] Paketli .app'te Python UTF-8 modu ZORUNLU (dikteyi öldüren bug)
 
-**Ne:** Üç katman: (1) plist `LSEnvironment: {PYTHONUTF8: "1"}` — bundle'daki tüm Python UTF-8 modunda, (2) `/tmp/wispherklon.log` `encoding="utf-8", errors="replace"` ile açılır, (3) Ollama subprocess'i `encoding="utf-8"`.
+**Ne:** Üç katman: (1) plist `LSEnvironment: {PYTHONUTF8: "1"}` — bundle'daki tüm Python UTF-8 modunda, (2) `/tmp/listender.log` `encoding="utf-8", errors="replace"` ile açılır, (3) Ollama subprocess'i `encoding="utf-8"`.
 **Neden — denedik olmadı (encoding belirtmeden):** Finder'dan açılan .app'te locale C/ASCII'dir (terminaldeki gibi UTF-8 değil; terminal testinde üretilemedi çünkü shell'de Python C-locale'i otomatik UTF-8'e çevirir — Finder ortamında çevirmedi). Log dosyası encoding'siz açılınca `print("[dikte] kayıt…")` içindeki 'ı' harfi `UnicodeEncodeError` fırlattı → `_process` worker thread'i öldü → kayıt alınıyor ama metin asla yazılmıyordu. Hata mesajının kendisi de Türkçe karakter içerdiğinden except bloğu da çöktü — çifte sessiz ölüm. Türkçe uygulamada paketleme yaparken ilk bakılacak yer.
-**Ders:** kanıt `/tmp/wispherklon.log`'daki traceback'ti — bundled modda stdout/stderr'i log dosyasına yönlendirmek (run.py) bu teşhisi mümkün kıldı; yönlendirme kalıcı özellik olarak kaldı.
+**Ders:** kanıt `/tmp/listender.log`'daki traceback'ti — bundled modda stdout/stderr'i log dosyasına yönlendirmek (run.py) bu teşhisi mümkün kıldı; yönlendirme kalıcı özellik olarak kaldı.
 
-## [2026-07-03] Kurulum: tek-tık kur.command + model yolu Wispherklon'un kendi klasörüne
+## [2026-07-03] Kurulum: tek-tık kur.command + model yolu Listender'un kendi klasörüne
 
-**Ne:** `Kurulum/` klasörü: imzalı `Wispherklon.app` + `kur.command` (çift tık → karantina kaldır + /Applications'a taşı + izin panellerini aç + başlat). Model yolu: VidScribe kopyası VARSA paylaşılır, yoksa `~/Library/Application Support/Wispherklon/models/`'a iner — dağıtılan .app yabancı makinede VidScribe klasörü oluşturmasın.
+**Ne:** `Kurulum/` klasörü: imzalı `Listender.app` + `kur.command` (çift tık → karantina kaldır + /Applications'a taşı + izin panellerini aç + başlat). Model yolu: VidScribe kopyası VARSA paylaşılır, yoksa `~/Library/Application Support/Listender/models/`'a iner — dağıtılan .app yabancı makinede VidScribe klasörü oluşturmasın.
 **Neden:** README'deki elle adımlar (xattr + taşı + üç izin paneli) kullanıcıyı yordu; canlı kurulumda izin panellerinde kaybolma yaşandı. Tek komutluk script "en az uğraş" hedefini ancak yarı karşıladı — çift tıklık kur.command tam karşılıyor. İzin doğrulaması: TCC db dışarıdan okunamıyor (Full Disk Access ister); tek güvenilir teşhis uygulamanın kendi logu ("This process is not trusted" satırı = Giriş İzleme yok; "[mikrofon] stream açıldı" = mikrofon tamam).
 **Doğrulama (2026-07-03):** Paketli .app ile uçtan uca canlı dikte GEÇTİ — kayıt → transkript → temizlik → enjeksiyon, Türkçe karakterler dahil. Not: mikrofon izni Giriş İzleme/Erişilebilirlik'ten AYRI ve ilk stream açılışında sorulur; verici kapalı mikrofon (şarj bitmesi) 🚫 ikonuyla karışabiliyor.
 
