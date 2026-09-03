@@ -1,12 +1,12 @@
 #!/bin/bash
 # Listender — tek komutla kurulum.
 #
-# Kullanım (repoyu klonladıktan sonra):
-#   gh repo clone uveyscolak/Listender && cd Listender && ./scripts/install.sh
+# Kullanım:
+#   curl -fsSL https://raw.githubusercontent.com/uveyscolak/Listender/main/scripts/install.sh | bash
 #
-# Ne yapar: Command Line Tools'u kontrol eder (yoksa kurdurur), derler, metin
-# temizlik hattını doğrular, /Applications/Listender.app olarak kurar ve izin
-# panellerini açar.
+# Ne yapar: Command Line Tools'u kontrol eder (yoksa kurdurur), kaynağı indirir,
+# derler, metin temizlik hattını doğrular, /Applications/Listender.app olarak
+# kurar ve izin panellerini açar.
 
 set -uo pipefail
 
@@ -74,7 +74,7 @@ else
 fi
 
 # --- 3) Kaynak ---------------------------------------------------------------
-# Repo özel: script klonlanmış kopyanın içinden çalıştırılırsa indirmez.
+# Script zaten klonlanmış bir kopyanın içinden çalıştırılırsa yeniden indirmez.
 
 KAYNAK_KOK="$(cd "$(dirname "$0")/.." && pwd)"
 if [ -f "$KAYNAK_KOK/Package.swift" ]; then
@@ -86,11 +86,7 @@ else
     adim "Listender indiriliyor"
     WORK_DIR=$(mktemp -d /tmp/listender-kurulum.XXXXXX) || hata "Geçici klasör oluşturulamadı."
     if ! git clone --depth 1 "$REPO_URL" "$WORK_DIR/Listender" >/dev/null 2>&1; then
-        hata "Kaynak indirilemedi.
-  Repo özel — git'in GitHub kimliğinizi bilmesi gerekiyor:
-      gh auth login
-  Ya da repoyu elle klonlayıp script'i içinden çalıştırın:
-      gh repo clone uveyscolak/Listender && cd Listender && ./scripts/install.sh"
+        hata "Kaynak indirilemedi. İnternet bağlantınızı kontrol edip tekrar deneyin."
     fi
     tamam "Kaynak indirildi"
     cd "$WORK_DIR/Listender" || hata "Kaynak klasörüne girilemedi."

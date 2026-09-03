@@ -15,15 +15,15 @@ Apple Silicon'ın Neural Engine'inde koşturur.
 
 ## Kurulum
 
-Repo özel olduğu için önce klonlanır:
+Terminal'i açın, şunu yapıştırıp Enter'a basın, birkaç dakika bekleyin:
 
 ```bash
-gh repo clone uveyscolak/Listender
-cd Listender && ./scripts/install.sh
+curl -fsSL https://raw.githubusercontent.com/uveyscolak/Listender/main/scripts/install.sh | bash
 ```
 
-Kaynak kendi makinende derlenir, `/Applications/Listender.app` olarak kurulur.
-İmzasız bir uygulama indirmediğin için Gatekeeper uyarısı çıkmaz.
+Hiçbir dosya indirmezsiniz, hiçbir uyarı çıkmaz. Kaynak kendi makinenizde
+derlenir, `/Applications/Listender.app` olarak kurulur. İmzasız bir uygulama
+indirmediğiniz için Gatekeeper uyarısı çıkmaz.
 
 ## İzinler (bir kez)
 
