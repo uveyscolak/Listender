@@ -6,10 +6,10 @@
       "Bash(git push *)",
       "Bash(python3 -c \"import json; d=json.load\\(open\\('.claude/settings.json'\\)\\); print\\('geçerli JSON —', list\\(d.keys\\(\\)\\)\\)\")",
       "Bash(git commit -m 'kurulum: settings.json — izinler + SessionStart hook birleştirildi *)",
-      "Read(//Users/minvaltaki/Documents/Claude/Video Indir/app/**)"
+      "Read(//Volumes/DEPO/Claude/Widdownder/app/**)"
     ],
     "additionalDirectories": [
-      "/Users/minvaltaki/Documents/Claude/Listender/.claude"
+      "/Volumes/DEPO/Claude/Listender/.claude"
     ]
   }
 }

@@ -1,4 +1,5 @@
 import AppKit
+import AVFoundation
 import ListenderKit
 
 // Alt komut: metin temizlik hattının uçtan uca kanıtı (mikrofon/model gerektirmez).
@@ -63,6 +64,159 @@ if CommandLine.arguments.dropFirst().first == "listender-ses-testi" {
         bekle.signal()
     }
     bekle.wait()
+    exit(0)
+}
+
+// Tanı komutu: canlı mikrofonu dinler ve HER KANALIN sinyal seviyesini ayrı
+// ayrı raporlar. Amaç, "ses gelmiyor" şikâyetinde sorunun nerede olduğunu
+// kesinleştirmek: donanım hiç sinyal vermiyor mu, yoksa sinyal belirli bir
+// kanalda mı (çok kanallı USB ses kartlarında olağan) ve mono'ya indirgeme
+// onu koruyor mu. GUI, tuş dinleyici ve Erişilebilirlik izni gerektirmez.
+if CommandLine.arguments.dropFirst().first == "listender-mikrofon-testi" {
+    let saniye = Double(CommandLine.arguments.dropFirst(2).first ?? "5") ?? 5
+
+    let motor = AVAudioEngine()
+    let giris = motor.inputNode
+    let bicim = giris.inputFormat(forBus: 0)
+    guard bicim.channelCount > 0, bicim.sampleRate > 0 else {
+        FileHandle.standardError.write(Data("HATA: kullanılabilir giriş aygıtı yok\n".utf8))
+        exit(1)
+    }
+
+    let kanalSayisi = Int(bicim.channelCount)
+    print("giriş: \(Int(bicim.sampleRate)) Hz, \(kanalSayisi) kanal")
+    print("\(String(format: "%.0f", saniye)) saniye boyunca konuşun…")
+
+    let kilit = NSLock()
+    var kareToplami = [Double](repeating: 0, count: kanalSayisi)   // kanal başına Σx²
+    var tepe = [Float](repeating: 0, count: kanalSayisi)           // kanal başına |x| tepe
+    var monoKareToplami: Double = 0                                // ortalanmış mono Σx²
+    var ornekSayisi = 0
+
+    giris.installTap(onBus: 0, bufferSize: AVAudioFrameCount(bicim.sampleRate * 0.1), format: bicim) { tampon, _ in
+        guard let veri = tampon.floatChannelData else { return }
+        let uzunluk = Int(tampon.frameLength)
+        guard uzunluk > 0 else { return }
+
+        kilit.lock()
+        defer { kilit.unlock() }
+        for orn in 0..<uzunluk {
+            var toplam: Float = 0
+            for k in 0..<kanalSayisi {
+                let deger = veri[k][orn]
+                kareToplami[k] += Double(deger) * Double(deger)
+                tepe[k] = max(tepe[k], abs(deger))
+                toplam += deger
+            }
+            let mono = toplam / Float(kanalSayisi)
+            monoKareToplami += Double(mono) * Double(mono)
+        }
+        ornekSayisi += uzunluk
+    }
+
+    do {
+        motor.prepare()
+        try motor.start()
+    } catch {
+        FileHandle.standardError.write(Data("HATA: ses motoru başlamadı: \(error)\n".utf8))
+        exit(1)
+    }
+
+    Thread.sleep(forTimeInterval: saniye)
+    motor.stop()
+    giris.removeTap(onBus: 0)
+
+    kilit.lock()
+    let n = max(ornekSayisi, 1)
+    print("\ntoplanan örnek: \(ornekSayisi)")
+    print("\nkanal başına seviye:")
+    var sesliKanallar: [Int] = []
+    for k in 0..<kanalSayisi {
+        let rms = (kareToplami[k] / Double(n)).squareRoot()
+        let isaret = rms > 0.0005 ? "  ← SİNYAL VAR" : ""
+        if rms > 0.0005 { sesliKanallar.append(k + 1) }
+        print(String(format: "  kanal %d: RMS=%.6f  tepe=%.6f%@", k + 1, rms, tepe[k], isaret))
+    }
+    let monoRms = (monoKareToplami / Double(n)).squareRoot()
+    print(String(format: "\nkanalların ortalaması (uygulamanın kullandığı): RMS=%.6f", monoRms))
+    kilit.unlock()
+
+    print("")
+    if sesliKanallar.isEmpty {
+        print("SONUÇ: hiçbir kanalda sinyal yok — donanım/izin sorunu.")
+        print("  · Terminal'in mikrofon izni var mı (Gizlilik → Mikrofon)?")
+        print("  · Sistem Ayarları → Ses → Giriş'te doğru aygıt seçili ve seviye çubuğu oynuyor mu?")
+    } else {
+        print("SONUÇ: sinyal şu kanallarda: \(sesliKanallar.map(String.init).joined(separator: ", "))")
+        if monoRms > 0.0005 {
+            print("  Ortalama mono sinyali koruyor — kayıt zinciri bu girişle çalışmalı.")
+        } else {
+            print("  UYARI: kanallarda ses var ama ortalama sıfıra yakın (kanallar birbirini götürüyor olabilir).")
+        }
+    }
+    exit(0)
+}
+
+// Tanı komutu: değiştirici tuş olaylarını ham haliyle yazar. "Tuşa basıyorum
+// ama uygulama görmüyor" şikâyetinde iki ihtimali ayırır: olaylar hiç gelmiyor
+// (izin/tap sorunu) mu, yoksa geliyor da beklenen tuş kodu tutmuyor mu
+// (klavye farkı). Terminal'den çalıştırılır; izin Terminal'e sorulur.
+if CommandLine.arguments.dropFirst().first == "listender-tus-testi" {
+    let saniye = Double(CommandLine.arguments.dropFirst(2).first ?? "15") ?? 15
+
+    let geriCagri: CGEventTapCallBack = { _, tur, olay, _ in
+        if tur == .tapDisabledByTimeout || tur == .tapDisabledByUserInput {
+            print("  ! tap sistem tarafından kapatıldı")
+            return Unmanaged.passUnretained(olay)
+        }
+        let kod = olay.getIntegerValueField(.keyboardEventKeycode)
+        let bayraklar = olay.flags
+        var adlar: [String] = []
+        if bayraklar.contains(.maskAlternate) { adlar.append("⌥") }
+        if bayraklar.contains(.maskCommand) { adlar.append("⌘") }
+        if bayraklar.contains(.maskControl) { adlar.append("⌃") }
+        if bayraklar.contains(.maskShift) { adlar.append("⇧") }
+        if bayraklar.contains(.maskSecondaryFn) { adlar.append("fn") }
+        let bilinen: String
+        switch kod {
+        case 58: bilinen = "sol ⌥"
+        case 61: bilinen = "SAĞ ⌥  ← uygulamanın beklediği tuş"
+        case 55: bilinen = "sol ⌘"
+        case 54: bilinen = "sağ ⌘"
+        case 59: bilinen = "sol ⌃"
+        case 62: bilinen = "sağ ⌃"
+        case 56: bilinen = "sol ⇧"
+        case 60: bilinen = "sağ ⇧"
+        case 63: bilinen = "fn"
+        default: bilinen = "?"
+        }
+        print("  tuş kodu \(kod)  [\(bilinen)]  bayraklar: \(adlar.isEmpty ? "—" : adlar.joined(separator: " "))")
+        fflush(stdout)   // dosyaya yönlendirildiğinde tampon beklemesin
+        return Unmanaged.passUnretained(olay)
+    }
+
+    guard let tap = CGEvent.tapCreate(
+        tap: .cgSessionEventTap,
+        place: .headInsertEventTap,
+        options: .listenOnly,
+        eventsOfInterest: CGEventMask(1 << CGEventType.flagsChanged.rawValue),
+        callback: geriCagri,
+        userInfo: nil)
+    else {
+        FileHandle.standardError.write(Data(
+            "HATA: tap kurulamadı — Terminal'e Giriş İzleme izni verin\n".utf8))
+        exit(1)
+    }
+
+    let kaynak = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
+    CFRunLoopAddSource(CFRunLoopGetCurrent(), kaynak, .commonModes)
+    CGEvent.tapEnable(tap: tap, enable: true)
+
+    print("tap kuruldu. \(String(format: "%.0f", saniye)) saniye boyunca")
+    print("değiştirici tuşlara (⌥ ⌘ ⌃ ⇧) tek tek basıp bırakın:\n")
+    fflush(stdout)
+    CFRunLoopRunInMode(.defaultMode, saniye, false)
+    print("\nbitti.")
     exit(0)
 }
 

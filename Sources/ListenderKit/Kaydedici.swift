@@ -74,7 +74,17 @@ public final class Kaydedici {
             throw Hata.girisYok
         }
 
-        donusturucu = AVAudioConverter(from: kaynakBicim, to: hedefBicim)
+        // Dönüştürücü mono→mono kurulur (kaynak örneklemesinde); çok kanallı
+        // girişler `kanallariOrtala` ile önce elle mono'ya indirgenir. Sebep:
+        // AVAudioConverter'a doğrudan N-kanallı format verilirse, kanal düzeni
+        // (layout) tanımsız donanımlarda (çoğu USB ses kartı) hangi kanalı
+        // aldığı belirsiz — sessiz bir kanalı seçip tam sessizlik üretebiliyor.
+        let araBicim = AVAudioFormat(
+            commonFormat: .pcmFormatFloat32,
+            sampleRate: kaynakBicim.sampleRate,
+            channels: 1,
+            interleaved: false)!
+        donusturucu = AVAudioConverter(from: araBicim, to: hedefBicim)
         guard donusturucu != nil else { throw Hata.donusturucuKurulamadi }
 
         // Tap boyu kaynak örneklemesinde istenir; 30 ms karşılığını hesapla.
@@ -127,8 +137,46 @@ public final class Kaydedici {
         }
     }
 
+    /// Kaynak N kanallıysa hepsini ortalayarak tek kanala indirger — hangi giriş
+    /// aygıtı aktifse o kullanılmalı, kanal sayısı önemli olmamalı. Zaten mono
+    /// gelen tamponlara dokunmadan geçer.
+    ///
+    /// AVAudioConverter'a doğrudan çok kanallı format verildiğinde kanal düzeni
+    /// (layout) tanımsız donanımlarda (çoğu USB ses kartı, ör. PreSonus Revelator)
+    /// hangi kanalı okuduğu belirsiz kalıyor — konuşma başka bir kanaldayken
+    /// sessiz bir kanalı seçip tam sessizlik (RMS 0) üretebiliyor. Kanalları
+    /// elle ortalamak bu belirsizliği ortadan kaldırır: hangi kanalda ses varsa
+    /// toplama girer.
+    private func kanallariOrtala(_ girdi: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
+        let kanalSayisi = Int(girdi.format.channelCount)
+        guard kanalSayisi > 1 else { return girdi }
+
+        guard let kaynakVeri = girdi.floatChannelData else { return nil }
+        let uzunluk = Int(girdi.frameLength)
+        guard uzunluk > 0 else { return nil }
+
+        let monoBicim = AVAudioFormat(
+            commonFormat: .pcmFormatFloat32,
+            sampleRate: girdi.format.sampleRate,
+            channels: 1,
+            interleaved: false)!
+        guard let cikti = AVAudioPCMBuffer(pcmFormat: monoBicim, frameCapacity: AVAudioFrameCount(uzunluk)),
+              let hedefVeri = cikti.floatChannelData?[0]
+        else { return nil }
+
+        for orn in 0..<uzunluk {
+            var toplam: Float = 0
+            for k in 0..<kanalSayisi { toplam += kaynakVeri[k][orn] }
+            hedefVeri[orn] = toplam / Float(kanalSayisi)
+        }
+        cikti.frameLength = AVAudioFrameCount(uzunluk)
+        return cikti
+    }
+
     /// Donanım biçimindeki tamponu 16 kHz mono float32 diziye çevirir.
-    private func donustur(_ girdi: AVAudioPCMBuffer, _ donusturucu: AVAudioConverter) -> [Float]? {
+    private func donustur(_ girdiHam: AVAudioPCMBuffer, _ donusturucu: AVAudioConverter) -> [Float]? {
+        guard let girdi = kanallariOrtala(girdiHam) else { return nil }
+
         let oran = hedefBicim.sampleRate / girdi.format.sampleRate
         let kapasite = AVAudioFrameCount(Double(girdi.frameLength) * oran) + 64
         guard let cikti = AVAudioPCMBuffer(pcmFormat: hedefBicim, frameCapacity: kapasite) else {

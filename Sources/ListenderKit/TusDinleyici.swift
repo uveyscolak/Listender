@@ -7,7 +7,14 @@ import CoreGraphics
 /// olayları değil `.flagsChanged` olayları izlenir; hangi tuşun değiştiğini
 /// tuş kodundan anlarız (sağ ⌥ = 61, sol ⌥ = 58 — sol tuşa tepki verilmez).
 ///
-/// Bu tap **Giriş İzleme** izni ister. İzin yoksa tap kurulamaz.
+/// Bu tap **Giriş İzleme** ve **Erişilebilirlik** izni ister. İzin yoksa tap kurulamaz.
+///
+/// Tap kendi ayrı thread'inde, kendi `CFRunLoop`'unda çalışır — ana thread'e
+/// (AppKit menü izleme, ses motoru yeniden yapılandırma, model işi) bağlı
+/// değildir. Önceki sürümde tap ana thread'in run loop'una eklenmişti; ana
+/// thread kısa süreliğine tıkandığında macOS tap'i "yanıt vermiyor" sayıp
+/// kapatıyordu (`tapDisabledByTimeout`), kod bunu yakalayıp yeniden açıyordu
+/// ama kapalı olduğu pencerede basılan tuş kayboluyordu.
 public final class TusDinleyici {
 
     /// Sağ Option'ın sanal tuş kodu (kVK_RightOption).
@@ -19,6 +26,9 @@ public final class TusDinleyici {
     private var tap: CFMachPort?
     private var kaynak: CFRunLoopSource?
     private var basiliMi = false
+
+    private var thread: Thread?
+    private var thredRunLoop: CFRunLoop?
 
     public init(basildi: @escaping () -> Void, birakildi: @escaping () -> Void) {
         self.basildi = basildi
@@ -54,16 +64,38 @@ public final class TusDinleyici {
 
         tap = yeniTap
         kaynak = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, yeniTap, 0)
-        CFRunLoopAddSource(CFRunLoopGetMain(), kaynak, .commonModes)
-        CGEvent.tapEnable(tap: yeniTap, enable: true)
-        Gunluk.yaz("tuş dinleyicisi kuruldu (sağ ⌥)")
+
+        let hazir = DispatchSemaphore(value: 0)
+        let yeniThread = Thread { [weak self] in
+            guard let self, let kaynak = self.kaynak, let tap = self.tap else {
+                hazir.signal()
+                return
+            }
+            let dongu = CFRunLoopGetCurrent()
+            self.thredRunLoop = dongu
+            CFRunLoopAddSource(dongu, kaynak, .commonModes)
+            CGEvent.tapEnable(tap: tap, enable: true)
+            hazir.signal()
+            CFRunLoopRun()   // bu thread'i sonsuza dek burada tut
+        }
+        yeniThread.name = "listender.tus-dinleyici"
+        yeniThread.start()
+        hazir.wait()
+        thread = yeniThread
+
+        Gunluk.yaz("tuş dinleyicisi kuruldu (sağ ⌥, ayrı thread)")
     }
 
     public func dur() {
         if let tap { CGEvent.tapEnable(tap: tap, enable: false) }
-        if let kaynak { CFRunLoopRemoveSource(CFRunLoopGetMain(), kaynak, .commonModes) }
+        if let dongu = thredRunLoop {
+            if let kaynak { CFRunLoopRemoveSource(dongu, kaynak, .commonModes) }
+            CFRunLoopStop(dongu)
+        }
         kaynak = nil
         tap = nil
+        thredRunLoop = nil
+        thread = nil
     }
 
     private func olayGeldi(tur: CGEventType, olay: CGEvent) {

@@ -1,4 +1,6 @@
 import AppKit
+import ApplicationServices
+import AVFoundation
 
 /// Menü barı uygulaması ve orkestrasyon.
 ///
@@ -45,6 +47,16 @@ public final class UygulamaDelegesi: NSObject, NSApplicationDelegate {
     public func applicationDidFinishLaunching(_ notification: Notification) {
         menuyuKur()
 
+        // Erişilebilirlik güvenini resmi API'den iste: bu hem sistem uyarısını
+        // gösterir hem de uygulamayı Erişilebilirlik listesine otomatik
+        // düşürür — "+" ile elle ekleme gerekmez. Giriş İzleme için ayrı bir
+        // istek API'si yok, CGEventTapCreate denemesi zaten kendini listeler.
+        let secenekler = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+        let guvenilirMi = AXIsProcessTrustedWithOptions(secenekler)
+        Gunluk.yaz("erişilebilirlik güveni: \(guvenilirMi)")
+
+        mikrofonIzniniIste()
+
         cozumleyici = Cozumleyici { [weak self] mesaj in
             Task { @MainActor in self?.durumYaz(mesaj) }
         }
@@ -56,7 +68,7 @@ public final class UygulamaDelegesi: NSObject, NSApplicationDelegate {
         do {
             try tusDinleyici.basla()
         } catch {
-            durumYaz("Giriş İzleme izni gerekiyor")
+            durumYaz("Giriş İzleme / Erişilebilirlik izni gerekiyor")
             ikonYaz(Ikon.hata)
             Gunluk.yaz("tuş dinleyicisi kurulamadı: \(error.localizedDescription)")
         }
@@ -126,6 +138,62 @@ public final class UygulamaDelegesi: NSObject, NSApplicationDelegate {
 
     private var hazirMi: Bool { modelHazir && mikrofonHazir }
 
+    // MARK: Mikrofon izni
+
+    /// Mikrofon iznini açıkça iste ve durumu kaydet.
+    ///
+    /// Kritik: izin verilmemişse macOS **hata vermez** — AVAudioEngine sorunsuz
+    /// başlar, tap düzenli çalışır, ama bütün örnekler sıfırdır (RMS=0.0000).
+    /// Bu yüzden izin durumu açıkça sorulmazsa arıza "sessiz mikrofon" gibi
+    /// görünür ve teşhis edilemez. 2026-09-03'te tam olarak bu yaşandı.
+    private func mikrofonIzniniIste() {
+        let durum = AVCaptureDevice.authorizationStatus(for: .audio)
+        Gunluk.yaz("mikrofon izni: \(izinAdi(durum))")
+
+        switch durum {
+        case .authorized:
+            return
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .audio) { [weak self] verildi in
+                Task { @MainActor in
+                    Gunluk.yaz("mikrofon izni istendi, sonuç: \(verildi)")
+                    guard let self else { return }
+                    if verildi {
+                        // Akış izin gelmeden açılmış olabilir; o akış sıfır dolu
+                        // tampon taşır ve izin sonradan verilse de kendiliğinden
+                        // düzelmez. Kapatıp yeniden kurulmalı.
+                        Gunluk.yaz("izin sonrası ses akışı yeniden kuruluyor")
+                        self.kaydedici.akisiDurdur()
+                        self.mikrofonHazir = false
+                        self.mikrofonuYokla()
+                    } else {
+                        self.mikrofonIzniYokUyar()
+                    }
+                }
+            }
+        case .denied, .restricted:
+            mikrofonIzniYokUyar()
+        @unknown default:
+            return
+        }
+    }
+
+    private func mikrofonIzniYokUyar() {
+        durumYaz("Mikrofon izni yok — Gizlilik → Mikrofon")
+        ikonYaz(Ikon.hata)
+        Gunluk.yaz("mikrofon izni verilmemiş: ses sessiz gelecek")
+    }
+
+    private func izinAdi(_ durum: AVAuthorizationStatus) -> String {
+        switch durum {
+        case .authorized: return "verilmiş"
+        case .denied: return "REDDEDİLMİŞ"
+        case .restricted: return "KISITLI"
+        case .notDetermined: return "henüz sorulmamış"
+        @unknown default: return "bilinmiyor"
+        }
+    }
+
     // MARK: Mikrofon yoklama
 
     private func mikrofonuYokla() {
@@ -189,7 +257,15 @@ public final class UygulamaDelegesi: NSObject, NSApplicationDelegate {
         // Sessizlik kapısı: sinyal yoksa whisper'a hiç gitme, normalize edilmiş
         // gürültü halüsinasyon üretir.
         guard rms >= Ayarlar.sessizlikRMS else {
-            bitir("Ses yok — mikrofon açık mı?")
+            // Tam sıfır, "kısık mikrofon"dan farklı bir arızadır: izin verilmemiş
+            // mikrofonda macOS hata vermeden sıfır dolu tampon gönderir. İkisini
+            // ayırıp kullanıcıya doğru yeri göster.
+            if rms == 0, AVCaptureDevice.authorizationStatus(for: .audio) != .authorized {
+                Gunluk.yaz("kayıt tamamen sessiz ve mikrofon izni yok — izin sorunu")
+                bitir("Mikrofon izni yok — Gizlilik → Mikrofon")
+            } else {
+                bitir("Ses yok — mikrofon açık mı?")
+            }
             return
         }
 
