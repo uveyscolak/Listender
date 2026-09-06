@@ -15,5 +15,6 @@ DerivedData/
 /.claude/
 /.vscode/
 
-# brain/ bilerek izleniyor: repo özel ve karar geçmişi (Bug-Defteri, Kararlar)
 # aylardır burada birikiyor, yedeği kalsın.
+# brain/ artık vault'ta: PROJELER/Listender/
+brain/
