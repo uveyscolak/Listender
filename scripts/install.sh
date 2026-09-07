@@ -121,7 +121,7 @@ tamam "Dolgu temizliği, noktalama ve halüsinasyon filtresi çalışıyor"
 adim "İmza sertifikası hazırlanıyor"
 IMZA_KIMLIGI="${LISTENDER_IMZA_KIMLIGI:-Listender Kod Imzalama}"
 SERTIFIKA_VAR=0
-if security find-identity -v -p codesigning 2>/dev/null | grep -qF "$IMZA_KIMLIGI"; then
+if security find-identity -p codesigning 2>/dev/null | grep -qF "$IMZA_KIMLIGI"; then
     tamam "Sertifika zaten var — izinler derlemeler arası korunur"
     SERTIFIKA_VAR=1
 elif ./scripts/sertifika-uret.sh >"$WORK_DIR/sertifika.log" 2>&1; then
@@ -130,7 +130,10 @@ elif ./scripts/sertifika-uret.sh >"$WORK_DIR/sertifika.log" 2>&1; then
 else
     uyari "Sertifika üretilemedi, ad-hoc imzayla devam ediliyor."
     bilgi "Uygulama çalışır; ancak yeniden derlerseniz izinleri tekrar vermeniz gerekebilir."
-    bilgi "Ayrıntı: $WORK_DIR/sertifika.log"
+    HATA_LOG="$HOME/Library/Logs/Listender/sertifika-hata.log"
+    mkdir -p "$(dirname "$HATA_LOG")"
+    cp "$WORK_DIR/sertifika.log" "$HATA_LOG" 2>/dev/null || true
+    bilgi "Ayrıntı: $HATA_LOG"
 fi
 
 # Eski kurulumun imzasını oku: imza değişince macOS'un izin defteri (TCC)
@@ -153,9 +156,13 @@ else
     YENI_IMZA="adhoc"
 fi
 
+# Ad-hoc imza her derlemede değişir: eski ve yeni ikisi de ad-hoc olsa bile
+# izin kaydı geçersizleşir. Yalnız aynı sertifikayla imzalanmışsa değişmemiştir.
 IMZA_DEGISTI=0
-if [ -d "$APP_PATH" ] && [ "$ESKI_IMZA" != "$YENI_IMZA" ]; then
-    IMZA_DEGISTI=1
+if [ -d "$APP_PATH" ]; then
+    if [ "$YENI_IMZA" = "adhoc" ] || [ "$ESKI_IMZA" != "$YENI_IMZA" ]; then
+        IMZA_DEGISTI=1
+    fi
 fi
 
 # --- 7) Kur ------------------------------------------------------------------
@@ -185,20 +192,20 @@ tamam "Menü çubuğunda mikrofon ikonu belirecek"
 
 adim "Son adım: izinler"
 printf "
-  Listender'ın çalışması için %süç izin%s gerekiyor. Sistem Ayarları açılıyor:
+  Listender'ın çalışması için %süç izin%s gerekiyor:
 
     1. %sGiriş İzleme%s     — sağ ⌥ tuşunu duyabilmek için
     2. %sErişilebilirlik%s  — metni imlecin olduğu yere yazabilmek için
     3. %sMikrofon%s         — ilk kayıtta macOS kendisi soracak
 
-  Listelerde %sListender%s'ı bulup açın.
+  Uygulama açılınca Giriş İzleme ve Erişilebilirlik için macOS kendisi
+  soracak; \"Sistem Ayarları'nı Aç\" deyip listede %sListender%s'ı açın.
+  Sormazsa menü çubuğundaki Listender ▸ İzinler'den açabilirsiniz.
   Listede Listender yoksa \"+\" ile /Applications/Listender.app dosyasını ekleyin.
 " "$BOLD" "$RESET" "$BOLD" "$RESET" "$BOLD" "$RESET" "$BOLD" "$RESET" "$BOLD" "$RESET"
 
 sleep 3
 open "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent" 2>/dev/null || true
-sleep 2
-open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility" 2>/dev/null || true
 
 printf "
 %s╭────────────────────────────────────────╮%s

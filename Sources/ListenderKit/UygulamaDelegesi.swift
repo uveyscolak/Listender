@@ -1,6 +1,7 @@
 import AppKit
 import ApplicationServices
 import AVFoundation
+import CoreGraphics
 
 /// Menü barı uygulaması ve orkestrasyon.
 ///
@@ -27,14 +28,22 @@ public final class UygulamaDelegesi: NSObject, NSApplicationDelegate {
 
     private var durumOgesi: NSStatusItem!
     private var durumSatiri: NSMenuItem!
+    private var modelOgesi: NSMenuItem!
     private var llmOgesi: NSMenuItem!
+    private var girisIzlemeOgesi: NSMenuItem!
+    private var erisilebilirlikOgesi: NSMenuItem!
+    private var mikrofonIzniOgesi: NSMenuItem!
     private var mikrofonSayaci: Timer?
+    private var izinBekcisi: Timer?
 
     private var modelHazir = false
+    private var modelYukleniyor = false
     private var mikrofonHazir = false
     private var kayitta = false
     private var kayitBasladi = Date()
     private var llmKullan = Ayarlar.llmVarsayilanAcik
+    private var girisIzlemeVar = false
+    private var erisilebilirlikVar = false
 
     private var tusDinleyici: TusDinleyici!
 
@@ -47,18 +56,35 @@ public final class UygulamaDelegesi: NSObject, NSApplicationDelegate {
     public func applicationDidFinishLaunching(_ notification: Notification) {
         menuyuKur()
 
+        // Giriş İzleme (Input Monitoring) sistemden resmi API'yle istenir; aksi
+        // halde uygulama izin listesinde hiç görünmüyor, kullanıcı "+" ile elle
+        // eklemek zorunda kalıyor.
+        let girisIzlemeOnceden = CGPreflightListenEventAccess()
+        Gunluk.yaz("giriş izleme izni: \(girisIzlemeOnceden)")
+        if !girisIzlemeOnceden {
+            let istekSonucu = CGRequestListenEventAccess()
+            Gunluk.yaz("giriş izleme izni istendi, sonuç: \(istekSonucu)")
+        }
+
         // Erişilebilirlik güvenini resmi API'den iste: bu hem sistem uyarısını
         // gösterir hem de uygulamayı Erişilebilirlik listesine otomatik
-        // düşürür — "+" ile elle ekleme gerekmez. Giriş İzleme için ayrı bir
-        // istek API'si yok, CGEventTapCreate denemesi zaten kendini listeler.
+        // düşürür — "+" ile elle ekleme gerekmez.
         let secenekler = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
         let guvenilirMi = AXIsProcessTrustedWithOptions(secenekler)
         Gunluk.yaz("erişilebilirlik güveni: \(guvenilirMi)")
 
+        girisIzlemeVar = girisIzlemeOnceden
+        erisilebilirlikVar = guvenilirMi
+        izinMenusunuTazele()
+        izinBekcisiKur()
+
         mikrofonIzniniIste()
 
         cozumleyici = Cozumleyici { [weak self] mesaj in
-            Task { @MainActor in self?.durumYaz(mesaj) }
+            Task { @MainActor in
+                self?.durumYaz(mesaj)
+                self?.modelOgesiniGuncelle(mesaj)
+            }
         }
 
         tusDinleyici = TusDinleyici(
@@ -67,8 +93,10 @@ public final class UygulamaDelegesi: NSObject, NSApplicationDelegate {
         tusDinleyici.izinSorunu = { [weak self] sorunVar in
             guard let self else { return }
             if sorunVar {
+                self.girisIzlemeVar = false
+                self.izinBekcisiKur()
                 // Kayıt sürerken "Kayıt…" satırının üstüne yazma.
-                if !self.kayitta { self.durumYaz("Giriş İzleme izni yok — İzinleri aç…") }
+                if !self.kayitta { self.durumYaz("Giriş İzleme izni yok — İzinler menüsünden aç") }
             } else {
                 self.bostaDurumunuTazele()
             }
@@ -98,6 +126,7 @@ public final class UygulamaDelegesi: NSObject, NSApplicationDelegate {
 
     public func applicationWillTerminate(_ notification: Notification) {
         mikrofonSayaci?.invalidate()
+        izinBekcisi?.invalidate()
         tusDinleyici?.dur()
         kaydedici.akisiDurdur()
     }
@@ -110,19 +139,53 @@ public final class UygulamaDelegesi: NSObject, NSApplicationDelegate {
         durumSatiri = NSMenuItem(title: "Başlatılıyor…", action: nil, keyEquivalent: "")
         durumSatiri.isEnabled = false
         menu.addItem(durumSatiri)
+
+        modelOgesi = NSMenuItem(
+            title: "Model: hazırlanıyor…",
+            action: #selector(modeliYenidenYukle), keyEquivalent: "")
+        modelOgesi.target = self
+        modelOgesi.isEnabled = false
+        menu.addItem(modelOgesi)
         menu.addItem(.separator())
 
         llmOgesi = NSMenuItem(
-            title: "LLM temizliği (Ollama)",
+            title: "Ollama ile metin düzeltme — kapalı",
             action: #selector(llmDegistir), keyEquivalent: "")
         llmOgesi.target = self
         menu.addItem(llmOgesi)
+
+        let llmAciklama = NSMenuItem(
+            title: "Noktalama ve akıcılığı düzeltir; Ollama ayrı kurulur",
+            action: nil, keyEquivalent: "")
+        llmAciklama.isEnabled = false
+        menu.addItem(llmAciklama)
         menu.addItem(.separator())
 
-        let izinler = NSMenuItem(
-            title: "İzinleri aç…", action: #selector(izinleriAc), keyEquivalent: "")
-        izinler.target = self
+        let izinlerMenu = NSMenu()
+        girisIzlemeOgesi = NSMenuItem(
+            title: "Giriş İzleme", action: #selector(girisIzlemePaneliniAc), keyEquivalent: "")
+        girisIzlemeOgesi.target = self
+        izinlerMenu.addItem(girisIzlemeOgesi)
+
+        erisilebilirlikOgesi = NSMenuItem(
+            title: "Erişilebilirlik", action: #selector(erisilebilirlikPaneliniAc), keyEquivalent: "")
+        erisilebilirlikOgesi.target = self
+        izinlerMenu.addItem(erisilebilirlikOgesi)
+
+        mikrofonIzniOgesi = NSMenuItem(
+            title: "Mikrofon", action: #selector(mikrofonPaneliniAc), keyEquivalent: "")
+        mikrofonIzniOgesi.target = self
+        izinlerMenu.addItem(mikrofonIzniOgesi)
+
+        let izinler = NSMenuItem(title: "İzinler", action: nil, keyEquivalent: "")
+        izinler.submenu = izinlerMenu
         menu.addItem(izinler)
+        menu.addItem(.separator())
+
+        let nasilCalisir = NSMenuItem(
+            title: "Nasıl çalışır…", action: #selector(nasilCalisirGoster), keyEquivalent: "")
+        nasilCalisir.target = self
+        menu.addItem(nasilCalisir)
 
         let cikis = NSMenuItem(title: "Çıkış", action: #selector(cik), keyEquivalent: "q")
         cikis.target = self
@@ -134,15 +197,38 @@ public final class UygulamaDelegesi: NSObject, NSApplicationDelegate {
     // MARK: Model
 
     private func modeliYukle() async {
+        guard !modelYukleniyor else { return }
+        modelYukleniyor = true
+        modelOgesi.title = "Model: hazırlanıyor…"
+        modelOgesi.isEnabled = false
+
         do {
             try await cozumleyici.yukle()
             modelHazir = true
+            modelYukleniyor = false
+            modelOgesi.title = "Model: hazır"
+            modelOgesi.isEnabled = false
             bostaDurumunuTazele()
         } catch {
             Gunluk.yaz("model yüklenemedi: \(error.localizedDescription)")
             durumYaz("Model hatası: \(error.localizedDescription)")
             ikonYaz(Ikon.hata)
+            modelYukleniyor = false
+            modelOgesi.title = "Model inmedi — yeniden indir"
+            modelOgesi.isEnabled = true
         }
+    }
+
+    /// Cozumleyici'nin yükleme sürecinde ilettiği ilerleme metnine göre menüdeki
+    /// model satırını günceller ("indiriliyor" mu "hazırlanıyor" mu). Yükleme
+    /// bitince (başarı ya da hata) `modeliYukle()` son hâli kendisi yazar.
+    private func modelOgesiniGuncelle(_ mesaj: String) {
+        guard modelYukleniyor else { return }
+        modelOgesi.title = mesaj.contains("indiriliyor") ? "Model: indiriliyor…" : "Model: hazırlanıyor…"
+    }
+
+    @objc private func modeliYenidenYukle() {
+        Task { await modeliYukle() }
     }
 
     private var hazirMi: Bool { modelHazir && mikrofonHazir }
@@ -377,25 +463,113 @@ public final class UygulamaDelegesi: NSObject, NSApplicationDelegate {
         let erisilebilir = await Ollama.kullanilabilir()
         if llmKullan && erisilebilir {
             llmOgesi.state = .on
-            llmOgesi.title = "LLM temizliği (Ollama) — açık"
+            llmOgesi.title = "Ollama ile metin düzeltme — açık"
         } else if llmKullan {
             llmOgesi.state = .off
-            llmOgesi.title = "LLM temizliği — Ollama erişilemez"
+            llmOgesi.title = "Ollama ile metin düzeltme — Ollama erişilemez"
         } else {
             llmOgesi.state = .off
-            llmOgesi.title = "LLM temizliği (Ollama) — kapalı"
+            llmOgesi.title = "Ollama ile metin düzeltme — kapalı"
         }
     }
 
-    // MARK: İzinler / çıkış
+    // MARK: İzinler
 
-    @objc private func izinleriAc() {
-        for ayar in [
-            "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent",
-            "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
-        ] {
-            if let url = URL(string: ayar) { NSWorkspace.shared.open(url) }
+    @objc private func girisIzlemePaneliniAc() {
+        izinPaneliniAc("x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
+    }
+
+    @objc private func erisilebilirlikPaneliniAc() {
+        izinPaneliniAc("x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+    }
+
+    @objc private func mikrofonPaneliniAc() {
+        izinPaneliniAc("x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone")
+    }
+
+    private func izinPaneliniAc(_ adres: String) {
+        if let url = URL(string: adres) { NSWorkspace.shared.open(url) }
+    }
+
+    private func izinMenusunuTazele() {
+        girisIzlemeOgesi.state = girisIzlemeVar ? .on : .off
+        erisilebilirlikOgesi.state = erisilebilirlikVar ? .on : .off
+        mikrofonIzniOgesi.state =
+            AVCaptureDevice.authorizationStatus(for: .audio) == .authorized ? .on : .off
+    }
+
+    /// Giriş İzleme veya Erişilebilirlik eksikken 2 saniyede bir durumu yeniden
+    /// okur. Sistem Ayarları'ndan izin verilince uygulama yeniden başlatılmadan
+    /// yakalanabilsin diye — Giriş İzleme özellikle, verildikten sonra tap'in
+    /// kendiliğinden düzelmediği görülmüştü.
+    private func izinBekcisiKur() {
+        guard izinBekcisi == nil else { return }
+        guard !girisIzlemeVar || !erisilebilirlikVar else { return }
+        izinBekcisi = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.izinleriYokla() }
         }
+    }
+
+    private func izinleriYokla() {
+        let yeniGirisIzleme = CGPreflightListenEventAccess()
+        let yeniErisilebilirlik = AXIsProcessTrusted()
+        var degisti = false
+
+        if yeniGirisIzleme != girisIzlemeVar {
+            Gunluk.yaz("giriş izleme izni değişti: \(girisIzlemeVar) -> \(yeniGirisIzleme)")
+            let yenidenVerildi = !girisIzlemeVar && yeniGirisIzleme
+            girisIzlemeVar = yeniGirisIzleme
+            degisti = true
+            if yenidenVerildi {
+                tusDinleyici.dur()
+                do {
+                    try tusDinleyici.basla()
+                    Gunluk.yaz("giriş izleme verildi — tuş dinleyicisi yeniden kuruldu")
+                } catch {
+                    Gunluk.yaz("tuş dinleyicisi yeniden kurulamadı: \(error.localizedDescription)")
+                }
+            }
+        }
+
+        if yeniErisilebilirlik != erisilebilirlikVar {
+            Gunluk.yaz("erişilebilirlik izni değişti: \(erisilebilirlikVar) -> \(yeniErisilebilirlik)")
+            erisilebilirlikVar = yeniErisilebilirlik
+            degisti = true
+        }
+
+        if degisti {
+            izinMenusunuTazele()
+            bostaDurumunuTazele()
+        }
+
+        if girisIzlemeVar && erisilebilirlikVar {
+            izinBekcisi?.invalidate()
+            izinBekcisi = nil
+        }
+    }
+
+    // MARK: Yardım / çıkış
+
+    @objc private func nasilCalisirGoster() {
+        let uyari = NSAlert()
+        uyari.alertStyle = .informational
+        uyari.messageText = "Listender nasıl çalışır"
+        var metin = """
+            Sağ ⌥ tuşuna basılı tutarken mikrofon kaydeder. Bırakınca ses, bu bilgisayardaki Whisper modeliyle yazıya çevrilir ve imlecin olduğu yere yapıştırılır. Ses ve metin bilgisayardan çıkmaz; internet yalnız modelin ilk indirilmesinde gerekir.
+
+            Metin temizliği: "eee, ıı" gibi dolgular her zaman silinir; cümle başındaki "yani, hani, şey, işte" temizlenir; yarım saniyeden kısa basmalar yok sayılır.
+
+            Ollama ile metin düzeltme (isteğe bağlı, varsayılan kapalı): bilgisayarda çalışan küçük bir dil modeli noktalamayı ve akıcılığı düzeltir. Ollama ayrı kurulur; kapalıyken dikte aynen çalışır. Anlamı değiştirebildiği için bilerek açılır.
+
+            İzinler: Giriş İzleme (tuşu duymak), Erişilebilirlik (metni yazmak), Mikrofon (sesi almak). Üçü de İzinler menüsünden açılır.
+            """
+        if let surum = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
+            metin += "\n\nSürüm \(surum)"
+        }
+        uyari.informativeText = metin
+        // Dock ikonu olmayan uygulamada (LSUIElement) pencere arkada kalıyor.
+        NSApp.activate(ignoringOtherApps: true)
+        uyari.runModal()
     }
 
     @objc private func cik() {
@@ -413,7 +587,11 @@ public final class UygulamaDelegesi: NSObject, NSApplicationDelegate {
     private func bostaDurumunuTazele() {
         guard !kayitta else { return }
         ikonYaz(bostaIkonu())
-        if !modelHazir {
+        if !girisIzlemeVar {
+            durumYaz("Giriş İzleme izni yok — İzinler menüsünden aç")
+        } else if !erisilebilirlikVar {
+            durumYaz("Erişilebilirlik izni yok — metin panoda kalır")
+        } else if !modelHazir {
             durumYaz("Model yükleniyor…")
         } else if !mikrofonHazir {
             durumYaz("Mikrofon yok — bağlanınca hazır olur")

@@ -75,7 +75,7 @@ cp "Resources/Listender.icns" "$APP/Contents/Resources/Listender.icns"
 # Bkz. Kararlar 2026-09-07.
 IMZA_KIMLIGI="${LISTENDER_IMZA_KIMLIGI:-Listender Kod Imzalama}"
 
-if security find-identity -v -p codesigning 2>/dev/null | grep -qF "$IMZA_KIMLIGI"; then
+if security find-identity -p codesigning 2>/dev/null | grep -qF "$IMZA_KIMLIGI"; then
     codesign --force --sign "$IMZA_KIMLIGI" "$APP"
     echo "İmza: $IMZA_KIMLIGI (sabit — izinler derlemeler arası korunur)"
 else

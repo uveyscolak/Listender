@@ -130,6 +130,9 @@ public final class TusDinleyici {
 
     public func dur() {
         ustUsteKapali = 0
+        // Tuş basılıyken durdurulup yeniden kurulabiliyor (izin sonradan
+        // verilince). Bayrak açık kalırsa yeni tap'te ilk basış yutulur.
+        basiliMi = false
         if let tap { CGEvent.tapEnable(tap: tap, enable: false) }
         if let dongu = thredRunLoop {
             if let kaynak { CFRunLoopRemoveSource(dongu, kaynak, .commonModes) }

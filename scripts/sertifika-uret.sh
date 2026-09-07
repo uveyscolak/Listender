@@ -33,7 +33,7 @@ hata()  { printf "\n%s✗ %s%s\n\n" "$RED" "$1" "$RESET" >&2; exit 1; }
 
 # --- Zaten var mı ------------------------------------------------------------
 
-if security find-identity -v -p codesigning 2>/dev/null | grep -qF "$KIMLIK"; then
+if security find-identity -p codesigning 2>/dev/null | grep -qF "$KIMLIK"; then
     tamam "Sertifika zaten var: $KIMLIK"
     bilgi "Yeniden üretmek gerekmiyor. Paketlemek için: ./scripts/make-app.sh"
     exit 0
@@ -52,14 +52,17 @@ trap 'rm -rf "$CALISMA"' EXIT
 # extendedKeyUsage=codeSigning şart: codesign bu uzantısı olmayan sertifikayı
 # kabul etmiyor. basicConstraints ve keyUsage de kritik işaretli olmalı.
 
-cat > "$CALISMA/openssl.cnf" <<'CNF'
+# Heredoc'u tırnaksız açıyoruz ki $KIMLIK doğrudan genişlesin; python3
+# bağımlılığı kaldırıldı (hedef makinede olmayabilir, CLT stub'ı olabilir).
+# $KIMLIK içinde "/" geçmediği için CN satırını doğrudan burada kurmak güvenli.
+cat > "$CALISMA/openssl.cnf" <<CNF
 [ req ]
 distinguished_name = dn
 x509_extensions    = v3
 prompt             = no
 
 [ dn ]
-CN = LISTENDER_CN_YERI
+CN = $KIMLIK
 
 [ v3 ]
 basicConstraints       = critical,CA:false
@@ -68,32 +71,27 @@ extendedKeyUsage       = critical,codeSigning
 subjectKeyIdentifier   = hash
 CNF
 
-# CN'yi güvenli biçimde yerleştir (kullanıcı adı değiştirmiş olabilir).
-python3 - "$CALISMA/openssl.cnf" "$KIMLIK" <<'PY'
-import io, sys
-yol, ad = sys.argv[1], sys.argv[2]
-metin = io.open(yol, encoding="utf-8").read()
-io.open(yol, "w", encoding="utf-8").write(metin.replace("LISTENDER_CN_YERI", ad))
-PY
-
 if ! openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
         -config "$CALISMA/openssl.cnf" \
         -keyout "$CALISMA/anahtar.pem" \
         -out "$CALISMA/sertifika.pem" >"$CALISMA/openssl.log" 2>&1; then
-    tail -5 "$CALISMA/openssl.log" >&2
+    cat "$CALISMA/openssl.log" >&2
     hata "Sertifika üretilemedi."
 fi
 tamam "Sertifika üretildi (10 yıl geçerli)"
 
-# .p12'ye topla. Boş parola: dosya birazdan silinecek geçici bir pakettir,
-# sır burada değil, anahtarlıkta korunuyor.
+# .p12'ye topla. Rastgele geçici bir parola kullanıyoruz: macOS'un
+# `security import` komutu boş parolalı PKCS12'yi bazen reddediyor
+# ("MAC verification failed"). Bu parola yalnız bu geçici dosyayı açmaya
+# yarıyor, dosya birazdan silinecek; sır burada değil, anahtarlıkta korunuyor.
+P12_PAROLA=$(openssl rand -hex 16)
 if ! openssl pkcs12 -export \
         -inkey "$CALISMA/anahtar.pem" \
         -in "$CALISMA/sertifika.pem" \
         -name "$KIMLIK" \
-        -passout pass: \
+        -passout "pass:$P12_PAROLA" \
         -out "$CALISMA/paket.p12" >>"$CALISMA/openssl.log" 2>&1; then
-    tail -5 "$CALISMA/openssl.log" >&2
+    cat "$CALISMA/openssl.log" >&2
     hata "Sertifika paketlenemedi."
 fi
 
@@ -103,34 +101,32 @@ fi
 # penceresi çıkmaz. Ayrı bir anahtarlık kurmak kilitli olacağı için pencere
 # açtırıyordu — bilerek öyle yapmıyoruz.
 #
-# -T /usr/bin/codesign: codesign bu anahtarı sormadan kullanabilsin.
+# -A: bütün uygulamalar bu anahtarı sormadan kullanabilsin. Kurulum
+# etkileşimsiz çalıştığı için (`curl | bash`) codesign'ın anahtarlık onay
+# penceresi açması kurulumu sessizce askıda bırakıyor — bugün tam bu yüzden
+# kurulum bir `.cstemp` dosyası bırakıp takıldı. Bu anahtar yalnız bu
+# makinede geçerli, kendi kendine imzalı bir sertifikaya ait; değeri düşük.
 
 adim "Anahtarlığa ekleniyor"
 if ! security import "$CALISMA/paket.p12" \
         -k "$ANAHTARLIK" \
-        -P "" \
-        -T /usr/bin/codesign \
-        -T /usr/bin/security \
+        -P "$P12_PAROLA" \
+        -A \
         >"$CALISMA/import.log" 2>&1; then
-    tail -5 "$CALISMA/import.log" >&2
+    cat "$CALISMA/import.log" >&2
     hata "Sertifika anahtarlığa eklenemedi."
 fi
 tamam "Anahtarlığa eklendi"
 
-# codesign'ın her imzada onay penceresi açmaması için erişim listesini ayarla.
-# Başarısız olursa kurulum yine çalışır, sadece ilk imzada bir onay penceresi
-# çıkabilir — bu yüzden hata sayılmıyor.
-if security set-key-partition-list -S apple-tool:,apple:,codesign: \
-        -k "" "$ANAHTARLIK" >/dev/null 2>&1; then
-    tamam "codesign erişimi ayarlandı"
-else
-    uyari "codesign erişimi ayarlanamadı — ilk imzada onay penceresi çıkabilir."
-fi
-
 # --- Doğrula -----------------------------------------------------------------
+#
+# Kendi kendine imzalı sertifika "güvenilir" işaretli değildir; bu yüzden
+# `find-identity -v` (yalnız geçerli) onu göstermez. codesign yine de bu
+# kimlikle imzalar ve izin kaydı sertifikaya bağlanır — denendi, doğrulandı.
+# Güvenilir işaretlemek yönetici parolası ister; gerekmiyor, yapılmıyor.
 
 adim "Doğrulanıyor"
-if ! security find-identity -v -p codesigning 2>/dev/null | grep -qF "$KIMLIK"; then
+if ! security find-identity -p codesigning 2>/dev/null | grep -qF "$KIMLIK"; then
     hata "Sertifika eklendi ama kod imzalama kimliği olarak görünmüyor."
 fi
 tamam "Kod imzalama kimliği hazır: $KIMLIK"
