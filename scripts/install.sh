@@ -112,7 +112,53 @@ SMOKE=$(.build/release/Listender listender-temizlik-smoke 2>&1)
 [ "$SMOKE" = "SMOKE OK" ] || hata "Temizlik testi geçmedi: $SMOKE"
 tamam "Dolgu temizliği, noktalama ve halüsinasyon filtresi çalışıyor"
 
-# --- 6) Kur ------------------------------------------------------------------
+# --- 6) İmza sertifikası -----------------------------------------------------
+# Sabit bir imza olmadan macOS, her yeni derlemeyi başka bir uygulama sayıp
+# verilen izinleri siliyor. Sertifika bu makinede üretilir, dışarı çıkmaz.
+# Üretilemezse kurulum durmaz; uygulama ad-hoc imzayla da çalışır, yalnız
+# izinler yeniden derlemede sıfırlanabilir.
+
+adim "İmza sertifikası hazırlanıyor"
+IMZA_KIMLIGI="${LISTENDER_IMZA_KIMLIGI:-Listender Kod Imzalama}"
+SERTIFIKA_VAR=0
+if security find-identity -v -p codesigning 2>/dev/null | grep -qF "$IMZA_KIMLIGI"; then
+    tamam "Sertifika zaten var — izinler derlemeler arası korunur"
+    SERTIFIKA_VAR=1
+elif ./scripts/sertifika-uret.sh >"$WORK_DIR/sertifika.log" 2>&1; then
+    tamam "Sertifika üretildi — izinler derlemeler arası korunur"
+    SERTIFIKA_VAR=1
+else
+    uyari "Sertifika üretilemedi, ad-hoc imzayla devam ediliyor."
+    bilgi "Uygulama çalışır; ancak yeniden derlerseniz izinleri tekrar vermeniz gerekebilir."
+    bilgi "Ayrıntı: $WORK_DIR/sertifika.log"
+fi
+
+# Eski kurulumun imzasını oku: imza değişince macOS'un izin defteri (TCC)
+# eski kaydı yeniyle eşleştiremiyor, anahtar açık görünür ama izin geçmiyor.
+# Not: Authority= satırı yalnız -vvv (çok ayrıntılı) çıktıda görünüyor; tek -v
+# bunu vermiyor, denenip doğrulandı. Ad-hoc imzada bu satır hiç yok.
+ESKI_IMZA=""
+if [ -d "$APP_PATH" ]; then
+    ESKI_IMZA_SATIRI=$(codesign -dvvv "$APP_PATH" 2>&1 | grep '^Authority=' | head -1)
+    if [ -n "$ESKI_IMZA_SATIRI" ]; then
+        ESKI_IMZA="${ESKI_IMZA_SATIRI#Authority=}"
+    else
+        ESKI_IMZA="adhoc"
+    fi
+fi
+
+if [ "$SERTIFIKA_VAR" = "1" ]; then
+    YENI_IMZA="$IMZA_KIMLIGI"
+else
+    YENI_IMZA="adhoc"
+fi
+
+IMZA_DEGISTI=0
+if [ -d "$APP_PATH" ] && [ "$ESKI_IMZA" != "$YENI_IMZA" ]; then
+    IMZA_DEGISTI=1
+fi
+
+# --- 7) Kur ------------------------------------------------------------------
 
 adim "Uygulama kuruluyor"
 if [ -d "$APP_PATH" ]; then
@@ -125,7 +171,13 @@ fi
 [ -d "$APP_PATH" ] || hata "Uygulama beklenen yerde oluşmadı: $APP_PATH"
 tamam "Kuruldu: $APP_PATH"
 
-# --- 7) Başlat ve izinler ----------------------------------------------------
+if [ "$IMZA_DEGISTI" = "1" ]; then
+    tccutil reset Accessibility com.uveyscolak.listender >/dev/null 2>&1 || true
+    tccutil reset ListenEvent com.uveyscolak.listender >/dev/null 2>&1 || true
+    uyari "İmza değişti — eski izin kayıtları sıfırlandı, Giriş İzleme ve Erişilebilirlik'i yeniden vermeniz gerekecek."
+fi
+
+# --- 8) Başlat ve izinler ----------------------------------------------------
 
 adim "Listender başlatılıyor"
 open "$APP_PATH" || hata "Uygulama başlatılamadı."
@@ -140,6 +192,7 @@ printf "
     3. %sMikrofon%s         — ilk kayıtta macOS kendisi soracak
 
   Listelerde %sListender%s'ı bulup açın.
+  Listede Listender yoksa \"+\" ile /Applications/Listender.app dosyasını ekleyin.
 " "$BOLD" "$RESET" "$BOLD" "$RESET" "$BOLD" "$RESET" "$BOLD" "$RESET" "$BOLD" "$RESET"
 
 sleep 3

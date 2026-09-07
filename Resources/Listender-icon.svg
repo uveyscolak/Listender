@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Listender uygulama ikonu: koyu squircle zemin + beyaz mikrofon silueti -->
+  <!-- Not: bu SVG kaynak/referans amaçlıdır. Üretimde kullanılan PNG'ler
+       ImageMagick'in -draw komutlarıyla (roundRectangle, arc) çizilmiştir,
+       çünkü ImageMagick'in dahili SVG işleyicisi circle/stroke/path
+       öğelerini güvenilir render edemiyor. Bu dosya path eşdeğeriyle
+       aynı görünümü verir; gerçek bir SVG render motorunda (tarayıcı,
+       Illustrator, rsvg) doğru render olur. -->
+
+  <!-- squircle zemin -->
+  <rect x="0" y="0" width="1024" height="1024" rx="228" ry="228" fill="#24262E"/>
+
+  <!-- mikrofon gövdesi (kapsül) -->
+  <rect x="437" y="190" width="150" height="330" rx="75" ry="75" fill="#F5F6F8"/>
+
+  <!-- destek yayı (alt yarım halka) -->
+  <path d="M 330 467
+           a 182 182 0 0 0 364 0"
+        fill="none" stroke="#F5F6F8" stroke-width="32" stroke-linecap="round"/>
+
+  <!-- gövde-ayak çubuğu -->
+  <rect x="497" y="600" width="30" height="130" rx="15" ry="15" fill="#F5F6F8"/>
+
+  <!-- taban -->
+  <rect x="412" y="730" width="200" height="32" rx="16" ry="16" fill="#F5F6F8"/>
+</svg>

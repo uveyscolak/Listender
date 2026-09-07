@@ -20,8 +20,16 @@ public final class TusDinleyici {
     /// Sağ Option'ın sanal tuş kodu (kVK_RightOption).
     private static let sagOptionKodu: Int64 = 61
 
+    /// NX_DEVICERALTKEYMASK: bu bit sağ Option'a özel, .maskAlternate iki tuşu ayırmıyor.
+    private static let sagOptionBiti: UInt64 = 0x40
+
     private let basildi: () -> Void
     private let birakildi: () -> Void
+
+    /// İzin sorunu bildirimi: true = tap üst üste kapalı bulunuyor, izin eksik
+    /// olabilir; false = düzeldi. Timer tap'in kendi thread'inde çalıştığı için
+    /// çağrılar ana kuyruğa taşınır.
+    public var izinSorunu: ((Bool) -> Void)?
 
     private var tap: CFMachPort?
     private var kaynak: CFRunLoopSource?
@@ -29,6 +37,8 @@ public final class TusDinleyici {
 
     private var thread: Thread?
     private var thredRunLoop: CFRunLoop?
+    private var guvenlikAgiZamanlayici: CFRunLoopTimer?
+    private var ustUsteKapali = 0
 
     public init(basildi: @escaping () -> Void, birakildi: @escaping () -> Void) {
         self.basildi = basildi
@@ -75,6 +85,38 @@ public final class TusDinleyici {
             self.thredRunLoop = dongu
             CFRunLoopAddSource(dongu, kaynak, .commonModes)
             CGEvent.tapEnable(tap: tap, enable: true)
+
+            // Güvenlik ağı: bildirim kaçarsa tap sessizce kapalı kalmasın diye
+            // aynı thread'de periyodik kontrol. Ana thread'de olsaydı ana thread
+            // tıkandığında bu da tıkanırdı, o yüzden tap'in kendi thread'inde.
+            let zamanlayici = CFRunLoopTimerCreateWithHandler(
+                kCFAllocatorDefault, CFAbsoluteTimeGetCurrent() + 2, 2, 0, 0
+            ) { [weak self] _ in
+                guard let self, let tap = self.tap else { return }
+                if !CGEvent.tapIsEnabled(tap: tap) {
+                    CGEvent.tapEnable(tap: tap, enable: true)
+                    self.ustUsteKapali += 1
+                    if self.ustUsteKapali == 1 {
+                        Gunluk.yaz("tap kapalı bulundu, yeniden açıldı (periyodik kontrol)")
+                    } else if self.ustUsteKapali == 3 {
+                        Gunluk.yaz("tap üst üste 3 kez kapalı bulundu — Giriş İzleme izni verilmemiş olabilir")
+                        DispatchQueue.main.async { self.izinSorunu?(true) }
+                    }
+                    // 3'ten büyükse hiç log yazma: izin gerçekten yoksa sonsuza
+                    // dek her 2 saniyede gürültü olurdu.
+                } else if self.ustUsteKapali >= 3 {
+                    Gunluk.yaz("tap yeniden sağlıklı")
+                    DispatchQueue.main.async { self.izinSorunu?(false) }
+                    self.ustUsteKapali = 0
+                } else {
+                    self.ustUsteKapali = 0
+                }
+            }
+            self.guvenlikAgiZamanlayici = zamanlayici
+            if let zamanlayici {
+                CFRunLoopAddTimer(dongu, zamanlayici, .commonModes)
+            }
+
             hazir.signal()
             CFRunLoopRun()   // bu thread'i sonsuza dek burada tut
         }
@@ -87,11 +129,15 @@ public final class TusDinleyici {
     }
 
     public func dur() {
+        ustUsteKapali = 0
         if let tap { CGEvent.tapEnable(tap: tap, enable: false) }
         if let dongu = thredRunLoop {
             if let kaynak { CFRunLoopRemoveSource(dongu, kaynak, .commonModes) }
+            if let guvenlikAgiZamanlayici { CFRunLoopRemoveTimer(dongu, guvenlikAgiZamanlayici, .commonModes) }
             CFRunLoopStop(dongu)
         }
+        if let guvenlikAgiZamanlayici { CFRunLoopTimerInvalidate(guvenlikAgiZamanlayici) }
+        guvenlikAgiZamanlayici = nil
         kaynak = nil
         tap = nil
         thredRunLoop = nil
@@ -110,7 +156,7 @@ public final class TusDinleyici {
         else { return }
 
         // Bayrak duruyorsa basıldı, kalktıysa bırakıldı.
-        let simdiBasili = olay.flags.contains(.maskAlternate)
+        let simdiBasili = (olay.flags.rawValue & Self.sagOptionBiti) != 0
         guard simdiBasili != basiliMi else { return }
         basiliMi = simdiBasili
 

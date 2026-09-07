@@ -157,6 +157,25 @@ if CommandLine.arguments.dropFirst().first == "listender-mikrofon-testi" {
     exit(0)
 }
 
+// IOLLEvent.h'daki cihaza özel değiştirici tuş bit maskeleri: hangi tarafın
+// (sol/sağ) basılı olduğunu ayırt etmek için kullanılır.
+private let NX_DEVICELCTLKEYMASK: UInt64 = 0x00000001
+private let NX_DEVICELSHIFTKEYMASK: UInt64 = 0x00000002
+private let NX_DEVICERSHIFTKEYMASK: UInt64 = 0x00000004
+private let NX_DEVICELCMDKEYMASK: UInt64 = 0x00000008
+private let NX_DEVICERCMDKEYMASK: UInt64 = 0x00000010
+private let NX_DEVICELALTKEYMASK: UInt64 = 0x00000020
+private let NX_DEVICERALTKEYMASK: UInt64 = 0x00000040
+private let NX_DEVICERCTLKEYMASK: UInt64 = 0x00002000
+
+// Sol/sağ bitlerine göre "(sol)", "(sağ)" ya da "(sol+sağ)" eki üretir.
+private func tarafEki(sol: Bool, sag: Bool) -> String {
+    if sol && sag { return "(sol+sağ)" }
+    if sag { return "(sağ)" }
+    if sol { return "(sol)" }
+    return ""
+}
+
 // Tanı komutu: değiştirici tuş olaylarını ham haliyle yazar. "Tuşa basıyorum
 // ama uygulama görmüyor" şikâyetinde iki ihtimali ayırır: olaylar hiç gelmiyor
 // (izin/tap sorunu) mu, yoksa geliyor da beklenen tuş kodu tutmuyor mu
@@ -171,11 +190,24 @@ if CommandLine.arguments.dropFirst().first == "listender-tus-testi" {
         }
         let kod = olay.getIntegerValueField(.keyboardEventKeycode)
         let bayraklar = olay.flags
+        let ham = UInt64(bayraklar.rawValue)
         var adlar: [String] = []
-        if bayraklar.contains(.maskAlternate) { adlar.append("⌥") }
-        if bayraklar.contains(.maskCommand) { adlar.append("⌘") }
-        if bayraklar.contains(.maskControl) { adlar.append("⌃") }
-        if bayraklar.contains(.maskShift) { adlar.append("⇧") }
+        if bayraklar.contains(.maskAlternate) {
+            adlar.append("⌥" + tarafEki(sol: ham & NX_DEVICELALTKEYMASK != 0,
+                                         sag: ham & NX_DEVICERALTKEYMASK != 0))
+        }
+        if bayraklar.contains(.maskCommand) {
+            adlar.append("⌘" + tarafEki(sol: ham & NX_DEVICELCMDKEYMASK != 0,
+                                         sag: ham & NX_DEVICERCMDKEYMASK != 0))
+        }
+        if bayraklar.contains(.maskControl) {
+            adlar.append("⌃" + tarafEki(sol: ham & NX_DEVICELCTLKEYMASK != 0,
+                                         sag: ham & NX_DEVICERCTLKEYMASK != 0))
+        }
+        if bayraklar.contains(.maskShift) {
+            adlar.append("⇧" + tarafEki(sol: ham & NX_DEVICELSHIFTKEYMASK != 0,
+                                         sag: ham & NX_DEVICERSHIFTKEYMASK != 0))
+        }
         if bayraklar.contains(.maskSecondaryFn) { adlar.append("fn") }
         let bilinen: String
         switch kod {
@@ -190,7 +222,12 @@ if CommandLine.arguments.dropFirst().first == "listender-tus-testi" {
         case 63: bilinen = "fn"
         default: bilinen = "?"
         }
-        print("  tuş kodu \(kod)  [\(bilinen)]  bayraklar: \(adlar.isEmpty ? "—" : adlar.joined(separator: " "))")
+        var satir = "  tuş kodu \(kod)  [\(bilinen)]  bayraklar: \(adlar.isEmpty ? "—" : adlar.joined(separator: " "))"
+        if kod == 61 {
+            let sagOptionBasili = ham & NX_DEVICERALTKEYMASK != 0
+            satir += sagOptionBasili ? "  → uygulama KAYIT BAŞLATIR" : "  → uygulama KAYIT DURDURUR"
+        }
+        print(satir)
         fflush(stdout)   // dosyaya yönlendirildiğinde tampon beklemesin
         return Unmanaged.passUnretained(olay)
     }
@@ -213,7 +250,8 @@ if CommandLine.arguments.dropFirst().first == "listender-tus-testi" {
     CGEvent.tapEnable(tap: tap, enable: true)
 
     print("tap kuruldu. \(String(format: "%.0f", saniye)) saniye boyunca")
-    print("değiştirici tuşlara (⌥ ⌘ ⌃ ⇧) tek tek basıp bırakın:\n")
+    print("değiştirici tuşlara (⌥ ⌘ ⌃ ⇧) tek tek basıp bırakın:")
+    print("Sağ ⌥ tuşuna basıp bırakın. Ayrıca sol ⌥ basılıyken sağ ⌥'ye basıp bırakmayı deneyin — ikisi birlikteyken de doğru çalışmalı.\n")
     fflush(stdout)
     CFRunLoopRunInMode(.defaultMode, saniye, false)
     print("\nbitti.")

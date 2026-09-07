@@ -18,3 +18,8 @@ DerivedData/
 # aylardır burada birikiyor, yedeği kalsın.
 # brain/ artık vault'ta: PROJELER/Listender/
 brain/
+
+# İkon üretiminin ara çıktıları — yalnız Resources/Listender.icns ve
+# Resources/Listender-icon.svg repoya girer, .iconset ve ara PNG'ler girmez
+*.iconset/
+Resources/icon-*.png

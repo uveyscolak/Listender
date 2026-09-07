@@ -105,10 +105,28 @@ Ollama) → `NSPasteboard` ve Cmd-V enjeksiyonu (eski pano geri yüklenir).
 
 Ses hiçbir aşamada diske yazılmaz.
 
+## Sorun giderme
+
+**Sistem Ayarları'nda izinler açık ama sağ ⌥ çalışmıyor.** Uygulamanın imzası
+değişmiş, macOS'un izin kaydı eskide kalmış demektir. Kurulum script'i bunu
+kendisi yakalar; elle kurduysanız:
+
+```bash
+tccutil reset Accessibility com.uveyscolak.listender
+tccutil reset ListenEvent com.uveyscolak.listender
+```
+
+Sonra Sistem Ayarları'nda iki listeye de "+" ile `/Applications/Listender.app`
+ekleyin. Menü çubuğu durum satırı "Giriş İzleme izni yok" diyorsa sorun budur.
+
+**Log:** `~/Library/Logs/Listender/listender.log` — dikte metni yazılmaz, yalnız
+süre ve karakter sayısı.
+
 ## Bilinen sınırlar
 
 - İlk açılıştaki CoreML derlemesi her yeniden kurulumda tekrarlanır.
-- Ad-hoc imza: uygulama yeniden derlendiğinde imza değiştiği için macOS
-  izinleri sıfırlayabilir.
+- İmza sertifikası üretilemezse uygulama ad-hoc imzayla kurulur; o durumda
+  yeniden derlemede macOS izinleri sıfırlayabilir. Kurulum bunu ekranda söyler,
+  sertifikayı sonradan `./scripts/sertifika-uret.sh` ile üretebilirsiniz.
 - Ölçüm (M2 Pro): 6 saniyelik ses 0,8 saniyede çözülüyor; model yüklemesi
   ilk açılışta ~135 sn, sonrasında ~7 sn.

@@ -19,8 +19,8 @@ public enum Gunluk {
 
     public static func yaz(_ mesaj: String) {
         let satir = "\(bicimlendirici.string(from: Date())) \(mesaj)\n"
-        FileHandle.standardError.write(Data(satir.utf8))
         kuyruk.async {
+            FileHandle.standardError.write(Data(satir.utf8))
             let dosya = Ayarlar.logDosyasi
             try? FileManager.default.createDirectory(
                 at: dosya.deletingLastPathComponent(), withIntermediateDirectories: true)

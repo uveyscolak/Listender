@@ -64,6 +64,15 @@ public final class UygulamaDelegesi: NSObject, NSApplicationDelegate {
         tusDinleyici = TusDinleyici(
             basildi: { [weak self] in self?.kaydiBaslat() },
             birakildi: { [weak self] in self?.kaydiBitir() })
+        tusDinleyici.izinSorunu = { [weak self] sorunVar in
+            guard let self else { return }
+            if sorunVar {
+                // Kayıt sürerken "Kayıt…" satırının üstüne yazma.
+                if !self.kayitta { self.durumYaz("Giriş İzleme izni yok — İzinleri aç…") }
+            } else {
+                self.bostaDurumunuTazele()
+            }
+        }
 
         do {
             try tusDinleyici.basla()

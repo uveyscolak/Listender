@@ -40,6 +40,8 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
     <string>Listender</string>
     <key>CFBundleDisplayName</key>
     <string>Listender</string>
+    <key>CFBundleIconFile</key>
+    <string>Listender</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -58,7 +60,29 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 </plist>
 PLIST
 
-codesign --force --sign - "$APP"
+mkdir -p "$APP/Contents/Resources"
+cp "Resources/Listender.icns" "$APP/Contents/Resources/Listender.icns"
+
+# İmza — sabit sertifika varsa onunla, yoksa ad-hoc.
+#
+# Ad-hoc imzada (`--sign -`) designated requirement doğrudan cdhash'e (kodun
+# özeti) bağlanıyor: `designated => cdhash H"..."`. Kod her derlemede değiştiği
+# için bu özet de değişiyor ve macOS'un izin veritabanı (TCC) kaydı geçersiz
+# oluyor — verilen Erişilebilirlik ve Giriş İzleme izinleri her yeni derlemede
+# uçuyor. Kendi kendine imzalı sabit bir sertifikayla imzalanınca designated
+# requirement `identifier + certificate leaf` biçimine dönüşüyor; ikisi de
+# derlemeler arası sabit olduğu için izinler yerinde kalıyor.
+# Bkz. Kararlar 2026-09-07.
+IMZA_KIMLIGI="${LISTENDER_IMZA_KIMLIGI:-Listender Kod Imzalama}"
+
+if security find-identity -v -p codesigning 2>/dev/null | grep -qF "$IMZA_KIMLIGI"; then
+    codesign --force --sign "$IMZA_KIMLIGI" "$APP"
+    echo "İmza: $IMZA_KIMLIGI (sabit — izinler derlemeler arası korunur)"
+else
+    codesign --force --sign - "$APP"
+    echo "İmza: ad-hoc (sertifika yok — her derlemede izinler sıfırlanabilir)"
+    echo "  Kalıcı imza için: ./scripts/sertifika-uret.sh"
+fi
 
 echo "Hazır: $APP"
 echo "Başlatmak için: open $APP"
