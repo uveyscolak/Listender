@@ -29,6 +29,10 @@ public final class Kaydedici {
     private var preRollEnFazla: Int
     private var kayitliOrnek = 0
     private var sinirGeriCagrisi: (() -> Void)?
+    /// Kayıt sürerken ses yapılandırması değişirse çağrılır. Kayıt o noktada
+    /// bozulmuştur: aygıt değişti, biriken tampon yarım kaldı, sonrası sıfır
+    /// dolu gelir. Sessizce devam etmek yerine kullanıcıya söylenmeli.
+    private var yapilandirmaGeriCagrisi: (() -> Void)?
     /// Son tap zamanı — akış gerçekten sürüyor mu, tek güvenilir sinyal bu.
     private var sonBlokZamani = Date.distantPast
 
@@ -50,6 +54,13 @@ public final class Kaydedici {
     // MARK: Akış
 
     public var akisVar: Bool { akisAcik }
+
+    /// Kayıt sırasında ses yapılandırması değişince haber verilecek kapı.
+    public func yapilandirmaDegisirseHaberVer(_ geriCagri: (() -> Void)?) {
+        kilit.lock()
+        defer { kilit.unlock() }
+        yapilandirmaGeriCagrisi = geriCagri
+    }
 
     /// Akış gerçekten ses taşıyor mu. Mikrofon fiziken çekilince motor hata
     /// vermeden susabiliyor; tek güvenilir işaret tap akışının durmasıdır.
@@ -109,9 +120,25 @@ public final class Kaydedici {
     }
 
     /// Aygıt değişince (mikrofon takıldı/çekildi) motor yeniden kurulmalı.
+    ///
+    /// Kayıt sürerken gelirse kayıt bozulmuştur ve sessizce sıfır tampon
+    /// biriktirmenin anlamı yok: üst katman haberdar edilir, kayıt düzgün
+    /// kapatılıp kullanıcıya söylenir. Logdaki RMS=0,0000 vakalarının bir
+    /// kısmı tam olarak buydu (2026-09-13 teşhisi).
     @objc private func yapilandirmaDegisti() {
         Gunluk.yaz("ses yapılandırması değişti — akış yeniden kurulacak")
+
+        kilit.lock()
+        let kayitSuruyor = kayitta
+        let geriCagri = yapilandirmaGeriCagrisi
+        kilit.unlock()
+
         akisiDurdur()
+
+        if kayitSuruyor {
+            Gunluk.yaz("yapılandırma kayıt sürerken değişti — kayıt kesiliyor")
+            if let geriCagri { DispatchQueue.main.async(execute: geriCagri) }
+        }
     }
 
     // MARK: Tap

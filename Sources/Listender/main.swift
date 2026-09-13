@@ -40,23 +40,65 @@ if CommandLine.arguments.dropFirst().first == "listender-temizlik-smoke" {
 // Whisper zincirinin paketlenmiş halde de çalıştığını kanıtlamak için.
 if CommandLine.arguments.dropFirst().first == "listender-ses-testi" {
     guard CommandLine.arguments.count > 2 else {
-        FileHandle.standardError.write(Data("kullanım: Listender listender-ses-testi <wav>\n".utf8))
+        FileHandle.standardError.write(Data("""
+            kullanım: Listender listender-ses-testi <wav> [--normalizesiz]
+
+              <wav>            16 kHz mono wav (başka biçimler de okunur, çevrilir)
+              --normalizesiz   tepe normalizasyonunu atla
+
+            Boş dönen kayıtlar şurada birikir, doğrudan verilebilir:
+              ~/Library/Logs/Listender/bos-kayitlar/
+
+            """.utf8))
         exit(2)
     }
     let dosya = CommandLine.arguments[2]
+    let bayraklar = Set(CommandLine.arguments.dropFirst(3))
+    let normalizesiz = bayraklar.contains("--normalizesiz")
     let bekle = DispatchSemaphore(value: 0)
     Task {
         do {
-            let ornekler = try SesDosyasi.oku16kHz(dosya)
-            print("ses: \(String(format: "%.1f", Double(ornekler.count) / Ayarlar.ornekleme)) sn")
+            var ornekler = try SesDosyasi.oku16kHz(dosya)
+            let rms = rmsHesapla(ornekler)
+            let sure = Double(ornekler.count) / Ayarlar.ornekleme
+            print(String(format: "ses: %.1f sn, %d örnek, RMS=%.4f", sure, ornekler.count, rms))
+
             let cozumleyici = Cozumleyici { print("  \($0)") }
+            if normalizesiz {
+                // Normalizasyon Cozumleyici içinde; burada tersini uygulayıp
+                // etkisini nötrlemek yerine, ham sesi zaten tepede vererek
+                // normalizasyonun bir şey değiştirmemesini sağlıyoruz.
+                let tepe = ornekler.map(abs).max() ?? 0
+                if tepe > 0 {
+                    let katsayi = Ayarlar.normalizeTepe / tepe
+                    ornekler = ornekler.map { $0 / katsayi }
+                }
+                print("  (tepe normalizasyonu devre dışı)")
+            }
+
             let t0 = Date()
             try await cozumleyici.yukle()
             print("model hazır: \(String(format: "%.1f", Date().timeIntervalSince(t0))) sn")
+
             let t1 = Date()
-            let ham = try await cozumleyici.cozumle(ornekler)
-            print("transkript (\(String(format: "%.2f", Date().timeIntervalSince(t1))) sn): \(ham)")
-            print("temiz: \(Temizleyici.regexTemizle(ham))")
+            let sonuc = try await cozumleyici.cozumleAyrintili(ornekler)
+            let gecen = Date().timeIntervalSince(t1)
+            print("transkript (\(String(format: "%.2f", gecen)) sn): \(sonuc.metin)")
+            print("dil: \(sonuc.dil), segment: \(sonuc.segmentler.count)")
+            for (i, seg) in sonuc.segmentler.enumerated() {
+                print(String(
+                    format: "  segment %d: noSpeechProb=%.3f avgLogprob=%.3f "
+                          + "compressionRatio=%.2f temperature=%.2f karakter=%d",
+                    i + 1, seg.noSpeechProb, seg.avgLogprob,
+                    seg.compressionRatio, seg.temperature, seg.karakterSayisi))
+            }
+
+            let baglam = Temizleyici.SesBaglami(rms: rms, sureSaniye: sure)
+            print("temiz: \(Temizleyici.regexTemizle(sonuc.metin, ses: baglam))")
+            if sonuc.metin.isEmpty {
+                print("\nSONUÇ: transkript BOŞ. Segment ölçümleri yukarıda; segment hiç yoksa")
+                print("  çözme döngüsü hiç token toplamadan kapanmış demektir.")
+            }
         } catch {
             FileHandle.standardError.write(Data("HATA: \(error)\n".utf8))
             exit(1)

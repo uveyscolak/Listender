@@ -103,7 +103,7 @@ pre-roll halka tamponu) → WhisperKit large-v3-turbo (dil `tr` sabit, model
 açılışta bir kez yüklenip sıcak tutulur) → regex temizliği (artı opsiyonel
 Ollama) → `NSPasteboard` ve Cmd-V enjeksiyonu (eski pano geri yüklenir).
 
-Ses hiçbir aşamada diske yazılmaz.
+Ses normalde hiçbir aşamada diske yazılmaz. Tek istisna teşhis: konuşma duyulmasına rağmen transkript boş dönerse o kayıt `~/Library/Logs/Listender/bos-kayitlar/` altına wav olarak saklanır (en fazla 20 dosya, eskisi silinir) — sebebi sonradan incelenebilsin diye; klasörü silmek serbesttir.
 
 ## Sorun giderme
 
@@ -121,6 +121,15 @@ ekleyin. Menü çubuğu durum satırı "Giriş İzleme izni yok" diyorsa sorun b
 
 **Log:** `~/Library/Logs/Listender/listender.log` — dikte metni yazılmaz, yalnız
 süre ve karakter sayısı.
+
+**Boş transkript.** Menü çubuğu ikonu üç saniye ⚠️ gösterip normale dönüyorsa kayıt başarısız bitmiştir; sebebi menüdeki durum satırında ve logda yazar. Ses duyulduğu halde transkript boş döndüyse kayıt `bos-kayitlar/` altına saklanır ve aynı ses yeniden denenebilir:
+
+```bash
+/Applications/Listender.app/Contents/MacOS/Listender \
+  listender-ses-testi ~/Library/Logs/Listender/bos-kayitlar/<dosya>.wav
+```
+
+Komut segment ölçümlerini (`noSpeechProb`, `avgLogprob`, `compressionRatio`, `temperature`) yazar; `--normalizesiz` ekleyerek tepe normalizasyonu olmadan da denenebilir.
 
 ## Bilinen sınırlar
 

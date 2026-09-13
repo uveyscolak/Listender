@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 
 @testable import ListenderKit
@@ -82,5 +83,85 @@ struct AyarTests {
         // qwen3:4b-instruct hâlâ kişi kayması yapabiliyor ("verdim" -> "verildi"),
         // o yüzden bilinçli olarak kapalı geliyor (bkz. brain/Kararlar 2026-07-03).
         #expect(Ayarlar.llmVarsayilanAcik == false)
+    }
+}
+
+@Suite("Boş kayıt teşhis dosyası")
+struct BosKayitTests {
+
+    /// Gerçek wav yazıp geri okuyan tam tur. Teşhis yolu ancak bu tur
+    /// çalışıyorsa işe yarar: boş dönen kayıt yeniden denenebilmeli.
+    @Test("Yazılan wav geri okununca aynı ses çıkar")
+    func yazOkuTuru() throws {
+        let klasor = FileManager.default.temporaryDirectory
+            .appendingPathComponent("listender-test-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: klasor) }
+
+        // 0,25 sn 440 Hz sinüs — sessizlikten ayırt edilebilir gerçek sinyal.
+        let sayi = Int(Ayarlar.ornekleme * 0.25)
+        let girdi = (0..<sayi).map {
+            Float(sin(2 * Double.pi * 440 * Double($0) / Ayarlar.ornekleme)) * 0.5
+        }
+
+        let hedef = klasor.appendingPathComponent("deneme.wav")
+        try SesDosyasi.wavYaz(girdi, hedef)
+        #expect(FileManager.default.fileExists(atPath: hedef.path))
+
+        let cikti = try SesDosyasi.oku16kHz(hedef.path)
+        #expect(cikti.count == girdi.count)
+        // 16 bit tamsayıya yuvarlanıyor; RMS korunmalı.
+        #expect(abs(rmsHesapla(cikti) - rmsHesapla(girdi)) < 0.01)
+    }
+
+    @Test("Boş dizi yazılmaz")
+    func bosDiziYazilmaz() {
+        #expect(SesDosyasi.bosKaydiSakla([]) == nil)
+    }
+
+    @Test("Klasör sınırı aşılınca en eskisi silinir")
+    func eskilerSilinir() throws {
+        let klasor = SesDosyasi.bosKayitKlasoru
+        let yonetici = FileManager.default
+
+        // Testin kendi dosyaları dışındakilere dokunmamak için önce mevcut
+        // durumu say; test sonunda yalnız kendi yazdıklarını siler.
+        let oncekiDosyalar: [URL] = (try? yonetici.contentsOfDirectory(
+            at: klasor, includingPropertiesForKeys: [])) ?? []
+        let oncekiler = Set(oncekiDosyalar.map { $0.lastPathComponent })
+
+        let ses = [Float](repeating: 0.1, count: 1600)
+        var yazilanlar: [URL] = []
+        defer { for yol in yazilanlar { try? yonetici.removeItem(at: yol) } }
+
+        // Sınırı 3'e çekip 5 dosya yaz: en eski 2'si silinmeli.
+        for i in 0..<5 {
+            let zaman = Date().addingTimeInterval(Double(i))
+            if let yol = SesDosyasi.bosKaydiSakla(ses, zaman: zaman, enFazla: 3) {
+                yazilanlar.append(yol)
+            }
+        }
+
+        let sonrakiDosyalar: [URL] = (try? yonetici.contentsOfDirectory(
+            at: klasor, includingPropertiesForKeys: [])) ?? []
+        let sonrakiler: [String] = sonrakiDosyalar
+            .filter { $0.pathExtension.lowercased() == "wav" }
+            .map { $0.lastPathComponent }
+        let yeniler = sonrakiler.filter { !oncekiler.contains($0) }
+
+        #expect(yeniler.count <= 3)
+        // En son yazılan mutlaka duruyor olmalı.
+        if let sonuncu = yazilanlar.last {
+            #expect(yonetici.fileExists(atPath: sonuncu.path))
+        }
+    }
+}
+
+@Suite("Uyarı ikonu ayarı")
+struct UyariTests {
+
+    @Test("Göze çarpacak kadar uzun, yolu tıkamayacak kadar kısa")
+    func makulSure() {
+        #expect(Ayarlar.uyariIkonuSaniye >= 2)
+        #expect(Ayarlar.uyariIkonuSaniye <= 5)
     }
 }

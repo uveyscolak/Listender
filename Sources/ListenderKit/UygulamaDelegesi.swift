@@ -35,6 +35,8 @@ public final class UygulamaDelegesi: NSObject, NSApplicationDelegate {
     private var mikrofonIzniOgesi: NSMenuItem!
     private var mikrofonSayaci: Timer?
     private var izinBekcisi: Timer?
+    /// Başarısız kayıttan sonra ikonu uyarı halinde tutan zamanlayıcı (A).
+    private var uyariSayaci: Timer?
 
     private var modelHazir = false
     private var modelYukleniyor = false
@@ -121,12 +123,20 @@ public final class UygulamaDelegesi: NSObject, NSApplicationDelegate {
         mikrofonSayaci = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.mikrofonuYokla() }
         }
+
+        // Kayıt sürerken aygıt değişirse kayıt bozulur; sessizce sıfır tampon
+        // biriktirmek yerine kaydı kapat ve kullanıcıya söyle.
+        kaydedici.yapilandirmaDegisirseHaberVer { [weak self] in
+            Task { @MainActor in self?.kayitSirasindaAygitDegisti() }
+        }
+
         mikrofonuYokla()
     }
 
     public func applicationWillTerminate(_ notification: Notification) {
         mikrofonSayaci?.invalidate()
         izinBekcisi?.invalidate()
+        uyariSayaci?.invalidate()
         tusDinleyici?.dur()
         kaydedici.akisiDurdur()
     }
@@ -320,6 +330,23 @@ public final class UygulamaDelegesi: NSObject, NSApplicationDelegate {
 
     private func kaydiBaslat() {
         guard hazirMi, !kayitta else { return }
+
+        // İkon kırmızıya dönmeden önce akışın gerçekten canlı olduğunu doğrula.
+        // Mikrofon fiziken çekilince veya ses yapılandırması değişince
+        // AVAudioEngine hata vermeden susuyor: tap çalışmaya devam ediyormuş
+        // gibi görünüyor ama sıfır tampon geliyor. Eskiden bu durumda ikon
+        // kırmızı oluyor, kullanıcı konuşuyor, sonuç RMS=0,0000 çıkıyordu
+        // (logda 14 vaka). Yoklama sayacı bunu 2 saniyede bir kontrol ediyor
+        // ama `guard !kayitta` yüzünden kayıt sırasında çalışmıyor; kapı burada.
+        guard akisiHazirla() else {
+            // `basarisizBitir` zaten varsa eski zamanlayıcıyı iptal edip
+            // yenisini kuruyor; ayrıca kapatmaya gerek yok.
+            basarisizBitir("Mikrofon akışı yok — kablosunu ve Sistem Ayarları → Ses'i kontrol edin",
+                           dal: "akış ölü")
+            return
+        }
+
+        uyariyiKapat()
         kayitta = true
         kayitBasladi = Date()
         kaydedici.kaydiBaslat(sinirAsildi: { [weak self] in
@@ -327,6 +354,40 @@ public final class UygulamaDelegesi: NSObject, NSApplicationDelegate {
         })
         ikonYaz(Ikon.kayit)
         durumYaz("Kayıt… (bırakınca yazılır)")
+    }
+
+    /// Akış canlıysa true. Ölüyse motoru yeniden kurmayı dener; kurulamazsa
+    /// false döner ve kayıt hiç başlamaz.
+    private func akisiHazirla() -> Bool {
+        if kaydedici.akisCanli() { return true }
+
+        Gunluk.yaz("kayıt öncesi akış ölü — motor yeniden kuruluyor")
+        kaydedici.akisiDurdur()
+        do {
+            try kaydedici.akisiBaslat()
+        } catch {
+            Gunluk.yaz("akış yeniden kurulamadı: \(error.localizedDescription)")
+            mikrofonHazir = false
+            return false
+        }
+
+        // `akisiBaslat()` son blok zamanını şimdiye çeker, yani ilk tap gelene
+        // kadar akış "canlı" görünür. Bu bilerek böyle: motor yeni kurulduğunda
+        // henüz tampon gelmemiş olması normaldir, ölü olduğu anlamına gelmez.
+        mikrofonHazir = true
+        Gunluk.yaz("akış yeniden kuruldu — kayıt başlatılıyor")
+        return true
+    }
+
+    /// Kayıt sürerken ses aygıtı değişti: biriken ses yarım ve sonrası sıfır.
+    /// Kaydı düzgün kapat, çöp sesi çözümlemeye gönderme, kullanıcıya söyle.
+    private func kayitSirasindaAygitDegisti() {
+        guard kayitta else { return }
+        kayitta = false
+        _ = kaydedici.kaydiBitir()   // biriken yarım ses atılır
+        mikrofonHazir = false
+        basarisizBitir("Ses aygıtı kayıt sırasında değişti — tekrar deneyin",
+                       dal: "kayıt sırasında aygıt değişti")
     }
 
     private func kaydiBitir() {
@@ -337,14 +398,15 @@ public final class UygulamaDelegesi: NSObject, NSApplicationDelegate {
         ikonYaz(Ikon.isleniyor)
 
         // Halüsinasyon filtresi: çok kısa basmalarda hiçbir şey yapma.
+        // Bu bir arıza değil, kullanıcının kısa basması; uyarı ikonu gösterilmez.
         guard sure >= Ayarlar.enKisaKayitSaniye, !ses.isEmpty else {
             bitir("Çok kısa — atlandı")
             return
         }
-        Task { await isle(ses) }
+        Task { await isle(ses, sure: sure) }
     }
 
-    private func isle(_ ses: [Float]) async {
+    private func isle(_ ses: [Float], sure: TimeInterval) async {
         let rms = rmsHesapla(ses)
         Gunluk.yaz(String(format: "kayıt %.1f sn, %d örnek, RMS=%.4f",
                           Double(ses.count) / Ayarlar.ornekleme, ses.count, rms))
@@ -357,27 +419,35 @@ public final class UygulamaDelegesi: NSObject, NSApplicationDelegate {
             // ayırıp kullanıcıya doğru yeri göster.
             if rms == 0, AVCaptureDevice.authorizationStatus(for: .audio) != .authorized {
                 Gunluk.yaz("kayıt tamamen sessiz ve mikrofon izni yok — izin sorunu")
-                bitir("Mikrofon izni yok — Gizlilik → Mikrofon")
+                basarisizBitir("Mikrofon izni yok — Gizlilik → Mikrofon", dal: "mikrofon izni")
             } else {
-                bitir("Ses yok — mikrofon açık mı?")
+                basarisizBitir("Ses yok — mikrofon açık mı?", dal: "ses yok")
             }
             return
         }
 
+        let baglam = Temizleyici.SesBaglami(rms: rms, sureSaniye: sure)
+
         do {
             durumYaz("Yazıya çevriliyor…")
-            let ham = try await cozumleyici.cozumle(ses)
+            let sonuc = try await cozumleyici.cozumleAyrintili(ses)
+            let ham = sonuc.metin
             Gunluk.metin("ham transkript", ham)
+
             guard !ham.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                bitir("Boş — bir şey duyulmadı")
+                // Konuşma seviyesinde ses verilmesine rağmen boş dönüş: sebebi
+                // bir dahaki sefere tek bakışta görebilmek için segment
+                // ölçümlerini ve ham sesi sakla.
+                if rms >= Ayarlar.sessizlikRMS { bosDonusuTesshisEt(ses, sonuc: sonuc) }
+                basarisizBitir("Boş — bir şey duyulmadı", dal: "boş transkript")
                 return
             }
 
             durumYaz("Temizleniyor…")
-            let metin = await Temizleyici.temizle(ham, llmKullan: llmKullan)
+            let metin = await Temizleyici.temizle(ham, llmKullan: llmKullan, ses: baglam)
             Gunluk.metin("temiz metin", metin)
             guard !metin.isEmpty else {
-                bitir("Temizlik sonrası boş")
+                basarisizBitir("Temizlik sonrası boş", dal: "temizlik sonrası boş")
                 return
             }
 
@@ -387,11 +457,39 @@ public final class UygulamaDelegesi: NSObject, NSApplicationDelegate {
             case .izinYokPanodaBirakildi:
                 bitir("İzin yok — metin panoda, Cmd-V ile yapıştır")
             case .bosMetin:
-                bitir("Boş metin")
+                basarisizBitir("Boş metin", dal: "enjeksiyon boş")
             }
         } catch {
             Gunluk.yaz("dikte hatası: \(error.localizedDescription)")
-            bitir("Hata: \(error.localizedDescription)")
+            basarisizBitir("Hata: \(error.localizedDescription)", dal: "çözümleme hatası")
+        }
+    }
+
+    /// Dolu sese rağmen boş dönen transkriptin teşhisi.
+    ///
+    /// İki iz bırakır: WhisperKit'in segment ölçümleri loga, ham ses ise
+    /// `~/Library/Logs/Listender/bos-kayitlar/` altına wav olarak. Böylece aynı
+    /// kayıt `listender-ses-testi` ile farklı ayarlarla yeniden denenebilir.
+    /// Ses **yalnız** bu durumda ve **yalnız** o klasöre yazılır.
+    private func bosDonusuTesshisEt(_ ses: [Float], sonuc: Cozumleyici.Sonuc) {
+        if sonuc.segmentler.isEmpty {
+            Gunluk.yaz("boş transkript teşhisi: dil=\(sonuc.dil), segment yok "
+                       + "(çözme döngüsü hiç token toplamadan kapandı)")
+        } else {
+            Gunluk.yaz("boş transkript teşhisi: dil=\(sonuc.dil), "
+                       + "\(sonuc.segmentler.count) segment")
+            for (i, seg) in sonuc.segmentler.enumerated() {
+                Gunluk.yaz(String(
+                    format: "  segment %d: noSpeechProb=%.3f avgLogprob=%.3f "
+                          + "compressionRatio=%.2f temperature=%.2f karakter=%d",
+                    i + 1, seg.noSpeechProb, seg.avgLogprob,
+                    seg.compressionRatio, seg.temperature, seg.karakterSayisi))
+            }
+        }
+
+        if let yol = SesDosyasi.bosKaydiSakla(ses) {
+            Gunluk.yaz("boş kayıt saklandı: \(yol.lastPathComponent) "
+                       + "(yeniden denemek için: Listender listender-ses-testi <yol>)")
         }
     }
 
@@ -600,9 +698,49 @@ public final class UygulamaDelegesi: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// Başarılı bitiş: durum satırını yaz, ikonu boşta haline döndür.
     private func bitir(_ mesaj: String) {
+        uyariyiKapat()
         durumYaz(mesaj)
         ikonYaz(bostaIkonu())
+    }
+
+    /// Başarısız bitiş: durum satırını yaz, ikonu 3 saniye uyarı halinde tut.
+    ///
+    /// Sebep: ikon başarısızlıkta da anında normale döndüğü için kullanıcı
+    /// hiçbir şey olmamış sanıyordu; menüdeki durum satırını açıp okuması
+    /// gerekiyordu (2026-09-13 teşhisi). Uyarı hali göze çarpar, sonra
+    /// kendiliğinden geçer.
+    ///
+    /// `dal` loga tek satır düşer: hangi aşamada kapandığı sonradan sayılabilsin.
+    private func basarisizBitir(_ mesaj: String, dal: String) {
+        Gunluk.yaz("kayıt başarısız (\(dal)): \(mesaj)")
+        durumYaz(mesaj)
+        uyariyiGoster()
+    }
+
+    /// İkonu uyarı haline çevir ve 3 saniye sonra boşta haline döndür.
+    /// Yeni bir kayıt başlarsa `uyariyiKapat()` zamanlayıcıyı iptal eder, ikon
+    /// anında kırmızıya döner — zamanlayıcı kırmızının üstüne yazamaz.
+    private func uyariyiGoster() {
+        uyariSayaci?.invalidate()
+        ikonYaz(Ikon.hata)
+        uyariSayaci = Timer.scheduledTimer(
+            withTimeInterval: Ayarlar.uyariIkonuSaniye, repeats: false
+        ) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                self.uyariSayaci = nil
+                // Kayıt bu arada başladıysa kırmızıya dokunma.
+                guard !self.kayitta else { return }
+                self.ikonYaz(self.bostaIkonu())
+            }
+        }
+    }
+
+    private func uyariyiKapat() {
+        uyariSayaci?.invalidate()
+        uyariSayaci = nil
     }
 
     private func durumYaz(_ mesaj: String) { durumSatiri?.title = mesaj }

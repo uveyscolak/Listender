@@ -89,6 +89,61 @@ struct HalusinasyonTests {
     }
 }
 
+@Suite("Halüsinasyon filtresi — ses bağlamı")
+struct HalusinasyonBaglamTests {
+
+    // Kural: "teşekkür ederim" gerçekten söylenebilecek bir cümle. Tam metin
+    // eşleşmesiyle silmek yalnız ses cılızken veya kayıt çok kısayken doğru;
+    // konuşma seviyesinde bir kayıtta kullanıcı onu gerçekten demiştir.
+    // Logdaki dört vakanın RMS'i 0,0004-0,0022, süreleri 2,1-2,9 sn
+    // (2026-09-13 analizi, 363 kayıt); başarılı diktenin RMS medyanı 0,0108.
+
+    private let konusma = Temizleyici.SesBaglami(rms: 0.0108, sureSaniye: 3.0)
+    private let cilizSes = Temizleyici.SesBaglami(rms: 0.0005, sureSaniye: 2.5)
+    private let kisaKayit = Temizleyici.SesBaglami(rms: 0.02, sureSaniye: 0.7)
+
+    @Test("Cılız seste tam eşleşme silinir")
+    func cilizSesteSilinir() {
+        #expect(Temizleyici.regexTemizle("teşekkür ederim", ses: cilizSes) == "")
+        #expect(Temizleyici.regexTemizle("Altyazı M.K.", ses: cilizSes) == "")
+    }
+
+    @Test("Konuşma seviyesinde tam eşleşme KORUNUR")
+    func konusmadaKorunur() {
+        // Asıl düzeltme bu: kullanıcı gerçekten "teşekkür ederim" demiş olabilir.
+        #expect(Temizleyici.regexTemizle("teşekkür ederim", ses: konusma) == "teşekkür ederim")
+        #expect(Temizleyici.regexTemizle("Abone ol", ses: konusma) == "Abone ol")
+    }
+
+    @Test("Çok kısa kayıtta ses yüksek olsa da silinir")
+    func kisaKayittaSilinir() {
+        // Yarım saniyelik basmada anlamlı bir cümle söylenmiş olamaz.
+        #expect(Temizleyici.regexTemizle("teşekkür ederim", ses: kisaKayit) == "")
+    }
+
+    @Test("Bağlam verilmezse eski davranış sürer")
+    func baglamsizEskiDavranis() {
+        #expect(Temizleyici.regexTemizle("teşekkür ederim") == "")
+    }
+
+    @Test("Konuşma seviyesinde dolgu temizliği yine çalışır")
+    func konusmadaDolguTemizlenir() {
+        // Bağlam yalnız tam metin eşleşmesini etkiler, geri kalan hat aynı.
+        #expect(Temizleyici.regexTemizle("eee bugün toplantı var", ses: konusma)
+                == "bugün toplantı var")
+    }
+
+    @Test("Eşik sessizlik eşiğinden türetilmiş, uydurulmamış")
+    func esikTuretilmis() {
+        #expect(Ayarlar.halusinasyonUstRMS == Ayarlar.sessizlikRMS * 25)
+        // Logdaki dört vakanın en yükseği 0,0022 — hepsi bandın içinde kalmalı.
+        #expect(Ayarlar.halusinasyonUstRMS > 0.0022)
+        // Başarılı diktenin 10. yüzdeliği 0,0054 — gerçek konuşma bandın
+        // üstünde kalmalı, yoksa söylenen cümle silinir.
+        #expect(Ayarlar.halusinasyonUstRMS < 0.0054)
+    }
+}
+
 @Suite("Boş girdi")
 struct BosGirdiTests {
 

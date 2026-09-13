@@ -34,6 +34,25 @@ public enum Ayarlar {
     /// Altındaki "ses yok" sayılır, whisper'a hiç gitmez (halüsinasyon önlemi).
     public static let sessizlikRMS: Float = 0.0002
 
+    /// Halüsinasyon filtresinin tam metin eşleşmesiyle silme yapabildiği üst
+    /// sınır. Sessizlik eşiğinin yirmi beş katı: bu bandın altındaki ses
+    /// "konuşma sayılamayacak kadar cılız" demektir, whisper'ın orada ürettiği
+    /// "teşekkür ederim" gerçek konuşma değil halüsinasyondur. Üstündeyse
+    /// kullanıcı o cümleyi gerçekten söylemiş olabilir, metin korunur.
+    ///
+    /// Yeni rakam uydurulmadı, mevcut eşikten türetildi ve gerçek logla
+    /// kalibre edildi (2026-09-13, 363 kayıt). Katsayı iki gerçek sayının
+    /// arasına oturuyor: temizlikte boşalan dört vakanın en yükseği 0,0022
+    /// (hepsi bandın içinde kalmalı), başarılı diktenin 10. yüzdeliği ise
+    /// 0,0054 (gerçek konuşma bandın üstünde kalmalı). Çarpan önce 10
+    /// denendi; 0,002 çıktığı ve dört vakadan birini kaçırdığı için testte
+    /// düştü, 25'e çıkarıldı.
+    public static let halusinasyonUstRMS: Float = sessizlikRMS * 25
+
+    /// Bu sürenin altındaki kayıtta tam metin eşleşmesi yine silinir: yarım
+    /// saniyelik basmada anlamlı bir cümle söylenmiş olamaz.
+    public static let halusinasyonKisaSaniye: Double = 1.0
+
     // MARK: Whisper
 
     public static let dil = "tr"   // sabit, otomatik algılama yok
@@ -45,12 +64,25 @@ public enum Ayarlar {
     /// Yalnızca cümle başında veya ardışık tekrarda temizlenen yumuşak dolgular.
     public static let yumusakDolgular = ["yani", "hani", "şey", "işte", "falan"]
     /// Whisper'ın boş/sessiz seste ürettiği bilinen halüsinasyonlar.
+    ///
+    /// Bu liste yalnız `halusinasyonUstRMS` altındaki cılız kayıtlarda ve çok
+    /// kısa basmalarda işler; konuşma seviyesinde bir kayıtta kullanıcı bu
+    /// cümleleri gerçekten söylemiş sayılır ve metin korunur.
+    ///
+    /// Son üç kalıp 2026-09-13'te ölçümle eklendi: `firstTokenLogProbThreshold`
+    /// kaldırıldıktan sonra model artık cılız gürültüde boş dönmek yerine
+    /// kısa bir kalıp uyduruyor. Üretilen ffmpeg gürültüsüyle doğrulandı —
+    /// beyaz gürültü "Evet.", pembe gürültü "...", 60 Hz uğultu
+    /// "Altyazı M.K." veriyor.
     public static let halusinasyonKaliplari = [
         "altyazı m.k.",
         "altyazı mk",
         "abone ol",
         "izlediğiniz için teşekkür",
         "teşekkür ederim",
+        "evet",
+        "...",
+        "…",
     ]
 
     // MARK: Ollama (opsiyonel LLM temizliği)
@@ -94,6 +126,12 @@ public enum Ayarlar {
         ("bu ürünün fiyatını hani beş yüz lira yapalım mı",
          "Bu ürünün fiyatını beş yüz lira yapalım mı?"),
     ]
+
+    // MARK: Arayüz
+
+    /// Başarısız biten kayıttan sonra ikonun uyarı halinde kalacağı süre.
+    /// Göze çarpacak kadar uzun, yolu tıkamayacak kadar kısa.
+    public static let uyariIkonuSaniye: Double = 3
 
     // MARK: Enjeksiyon
 

@@ -49,8 +49,39 @@ public enum Temizleyici {
         }.joined()
     }
 
+    /// Kaydın sesine dair bağlam. Halüsinasyon filtresi kararını buna bakarak
+    /// verir: cılız veya çok kısa kayıtta tam metin eşleşmesi silinir, konuşma
+    /// seviyesinde bir kayıtta korunur.
+    ///
+    /// Varsayılan `nil` bağlam "bilinmiyor" demektir ve eski davranışı sürdürür
+    /// (silme serbest); metin hattını sesten bağımsız sınayan testler ve
+    /// temizlik smoke komutu böyle çalışmaya devam eder.
+    public struct SesBaglami: Sendable {
+        public var rms: Float
+        public var sureSaniye: Double
+
+        public init(rms: Float, sureSaniye: Double) {
+            self.rms = rms
+            self.sureSaniye = sureSaniye
+        }
+
+        /// Tam metin eşleşmesiyle silmeye izin var mı.
+        ///
+        /// Konuşma seviyesinde ve yeterince uzun bir kayıtta kullanıcı
+        /// "teşekkür ederim"i gerçekten söylemiş olabilir; o metin silinmez.
+        var silmeSerbestMi: Bool {
+            rms < Ayarlar.halusinasyonUstRMS || sureSaniye < Ayarlar.halusinasyonKisaSaniye
+        }
+    }
+
     /// Tüm metin tek bir bilinen halüsinasyon kalıbından ibaretse komple at.
-    static func halusinasyonAyikla(_ metin: String) -> String {
+    ///
+    /// Ses bağlamı verildiyse ve kayıt konuşma seviyesindeyse silme yapılmaz:
+    /// gerçekten söylenmiş bir cümleyi halüsinasyon sanıp atmak, halüsinasyonu
+    /// yazmaktan daha kötü (kullanıcı hiçbir şey olmamış sanıyor).
+    static func halusinasyonAyikla(_ metin: String, ses: SesBaglami? = nil) -> String {
+        if let ses, !ses.silmeSerbestMi { return metin }
+
         let kucuk = turkceKucult(metin.trimmingCharacters(in: .whitespacesAndNewlines))
         let noktalama = CharacterSet(charactersIn: ".!?")
         for kalip in Ayarlar.halusinasyonKaliplari {
@@ -62,10 +93,10 @@ public enum Temizleyici {
         return metin
     }
 
-    public static func regexTemizle(_ girdi: String) -> String {
+    public static func regexTemizle(_ girdi: String, ses: SesBaglami? = nil) -> String {
         guard !girdi.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return "" }
 
-        var metin = halusinasyonAyikla(girdi)
+        var metin = halusinasyonAyikla(girdi, ses: ses)
         if metin.isEmpty { return "" }
 
         // Sert dolgular: nerede geçerse geçsin sil (kelime sınırıyla).
@@ -102,8 +133,10 @@ public enum Temizleyici {
     // MARK: Tam hat
 
     /// `llmKullan` açık ve Ollama erişilebilirse LLM katmanını da uygular.
-    public static func temizle(_ metin: String, llmKullan: Bool) async -> String {
-        let temiz = regexTemizle(metin)
+    public static func temizle(
+        _ metin: String, llmKullan: Bool, ses: SesBaglami? = nil
+    ) async -> String {
+        let temiz = regexTemizle(metin, ses: ses)
         guard !temiz.isEmpty else { return "" }
         guard llmKullan, await Ollama.kullanilabilir() else { return temiz }
         return await Ollama.duzelt(temiz).trimmingCharacters(in: .whitespacesAndNewlines)
