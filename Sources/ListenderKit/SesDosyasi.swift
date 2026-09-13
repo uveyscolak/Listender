@@ -64,6 +64,11 @@ public enum SesDosyasi {
     /// 16 kHz mono float32 diziyi wav olarak yazar ve yazılan yolu döndürür.
     @discardableResult
     public static func wavYaz(_ ornekler: [Float], _ hedef: URL) throws -> URL {
+        // Boş dizide yazacak örnek yok; `frameCapacity: max(ornekler.count, 1)`
+        // ile `frameLength: ornekler.count` (0) arasındaki uyumsuzluğu erkenden
+        // kes, sıfır örnekli bir wav dosyası oluşturmayı dene.
+        guard !ornekler.isEmpty else { throw Hata.bosOrnekDizisi }
+
         guard let bicim = AVAudioFormat(
             commonFormat: .pcmFormatFloat32,
             sampleRate: Ayarlar.ornekleme,
@@ -87,7 +92,7 @@ public enum SesDosyasi {
         let dosya = try AVAudioFile(forWriting: hedef, settings: ayarlar)
 
         guard let tampon = AVAudioPCMBuffer(
-            pcmFormat: bicim, frameCapacity: AVAudioFrameCount(max(ornekler.count, 1))),
+            pcmFormat: bicim, frameCapacity: AVAudioFrameCount(ornekler.count)),
             let veri = tampon.floatChannelData?[0] else { throw Hata.tamponKurulamadi }
 
         for (i, deger) in ornekler.enumerated() { veri[i] = deger }
@@ -106,9 +111,9 @@ public enum SesDosyasi {
         guard !ornekler.isEmpty else { return nil }
 
         let bicimlendirici = DateFormatter()
-        bicimlendirici.dateFormat = "yyyy-MM-dd_HH-mm-ss"
-        let hedef = bosKayitKlasoru
-            .appendingPathComponent("\(bicimlendirici.string(from: zaman)).wav")
+        bicimlendirici.dateFormat = "yyyy-MM-dd_HH-mm-ss-SSS"
+        let taban = bicimlendirici.string(from: zaman)
+        let hedef = benzersizHedef(taban: taban)
 
         do {
             try wavYaz(ornekler, hedef)
@@ -119,6 +124,20 @@ public enum SesDosyasi {
 
         eskileriSil(enFazla: enFazla)
         return hedef
+    }
+
+    /// `taban` adıyla henüz var olmayan bir dosya yolu üretir. Milisaniye
+    /// çözünürlüğü aynı saniyedeki çakışmaları çoğunlukla önlüyor ama aynı
+    /// milisaniyede iki boş kayıt gelirse (örn. testte) `-2`, `-3` eki eklenir.
+    private static func benzersizHedef(taban: String) -> URL {
+        let yonetici = FileManager.default
+        var aday = bosKayitKlasoru.appendingPathComponent("\(taban).wav")
+        var sira = 2
+        while yonetici.fileExists(atPath: aday.path) {
+            aday = bosKayitKlasoru.appendingPathComponent("\(taban)-\(sira).wav")
+            sira += 1
+        }
+        return aday
     }
 
     /// Klasörde en fazla `enFazla` wav bırakır, fazlasını eskiden başlayarak siler.
@@ -144,12 +163,13 @@ public enum SesDosyasi {
     }
 
     public enum Hata: LocalizedError {
-        case bicimKurulamadi, tamponKurulamadi, donusturucuKurulamadi
+        case bicimKurulamadi, tamponKurulamadi, donusturucuKurulamadi, bosOrnekDizisi
         public var errorDescription: String? {
             switch self {
             case .bicimKurulamadi: return "Ses biçimi kurulamadı."
             case .tamponKurulamadi: return "Ses tamponu kurulamadı."
             case .donusturucuKurulamadi: return "Ses dönüştürücüsü kurulamadı."
+            case .bosOrnekDizisi: return "Boş örnek dizisi wav olarak yazılamaz."
             }
         }
     }
