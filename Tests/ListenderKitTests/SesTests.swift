@@ -165,3 +165,18 @@ struct UyariTests {
         #expect(Ayarlar.uyariIkonuSaniye <= 5)
     }
 }
+
+@Suite("Enjeksiyon boşluğu")
+struct EnjeksiyonBoslukTests {
+
+    @Test("Metnin sonuna bir boşluk eklenir")
+    func sonaBosluk() {
+        #expect(Enjektor.sonaBoslukEkle("bugün toplantı var.") == "bugün toplantı var. ")
+        #expect(Enjektor.sonaBoslukEkle("merhaba") == "merhaba ")
+    }
+
+    @Test("Zaten boşlukla bitiyorsa ikinci boşluk konmaz")
+    func ciftBoslukOlmaz() {
+        #expect(Enjektor.sonaBoslukEkle("merhaba ") == "merhaba ")
+    }
+}

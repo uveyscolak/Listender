@@ -22,7 +22,18 @@ public enum Enjektor {
         AXIsProcessTrusted()
     }
 
+    /// Yazılacak metnin sonuna tek boşluk ekler.
+    ///
+    /// Dikte üst üste yapıldığında ikinci metin birincinin son kelimesine
+    /// yapışıyordu; kullanıcı her seferinde elle boşluk atmak zorunda kalıyordu.
+    /// Metin zaten boşlukla bitiyorsa ikinci boşluk konmaz.
+    static func sonaBoslukEkle(_ metin: String) -> String {
+        metin.hasSuffix(" ") ? metin : metin + " "
+    }
+
     /// Metni aktif uygulamanın imlecine yaz.
+    ///
+    /// Yazılan metnin sonuna bir boşluk eklenir (bkz. `sonaBoslukEkle`).
     ///
     /// İzin yoksa **metin panoda bırakılır** ve eski pano geri yüklenmez —
     /// böylece dikte edilen metin kaybolmaz, kullanıcı Cmd-V ile kendisi yapıştırır.
@@ -31,11 +42,12 @@ public enum Enjektor {
     public static func enjekteEt(_ metin: String) -> Sonuc {
         guard !metin.isEmpty else { return .bosMetin }
 
+        let yazilacak = sonaBoslukEkle(metin)
         let pano = NSPasteboard.general
         let eski = pano.string(forType: .string)
 
         pano.clearContents()
-        pano.setString(metin, forType: .string)
+        pano.setString(yazilacak, forType: .string)
 
         guard izinVarMi() else {
             Gunluk.yaz("erişilebilirlik izni yok — metin panoda bırakıldı")
