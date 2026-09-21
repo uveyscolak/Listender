@@ -5,8 +5,9 @@ import CoreGraphics
 
 /// Menü barı uygulaması ve orkestrasyon.
 ///
-/// Sağ ⌥ basılı tutulunca kayıt başlar, bırakılınca zincir işler:
-/// transkript, temizlik, enjeksiyon. Durum menü barındaki ikonda görünür.
+/// Seçili kayıt tuşu (varsayılan sağ Option) basılı tutulunca kayıt başlar,
+/// bırakılınca zincir işler: transkript, temizlik, enjeksiyon. Durum menü
+/// barındaki ikonda görünür.
 ///
 /// Durum yalnız ana aktörde tutulur (Python sürümündeki kilit ve
 /// `AppHelper.callAfter` köprüsü böylece gereksiz kaldı).
@@ -29,6 +30,8 @@ public final class UygulamaDelegesi: NSObject, NSApplicationDelegate {
     private var durumOgesi: NSStatusItem!
     private var durumSatiri: NSMenuItem!
     private var modelOgesi: NSMenuItem!
+    private var kayitTusuOgesi: NSMenuItem!
+    private var kayitTusuAltMenu: NSMenu!
     private var llmOgesi: NSMenuItem!
     private var girisIzlemeOgesi: NSMenuItem!
     private var erisilebilirlikOgesi: NSMenuItem!
@@ -90,6 +93,7 @@ public final class UygulamaDelegesi: NSObject, NSApplicationDelegate {
         }
 
         tusDinleyici = TusDinleyici(
+            tus: KullaniciAyarlari.kayitTusu,
             basildi: { [weak self] in self?.kaydiBaslat() },
             birakildi: { [weak self] in self?.kaydiBitir() })
         tusDinleyici.izinSorunu = { [weak self] sorunVar in
@@ -156,6 +160,27 @@ public final class UygulamaDelegesi: NSObject, NSApplicationDelegate {
         modelOgesi.target = self
         modelOgesi.isEnabled = false
         menu.addItem(modelOgesi)
+        menu.addItem(.separator())
+
+        kayitTusuAltMenu = NSMenu()
+        for tus in KayitTusu.allCases {
+            let oge = NSMenuItem(
+                title: tus.ad, action: #selector(kayitTusuSecildi(_:)), keyEquivalent: "")
+            oge.target = self
+            oge.representedObject = tus.rawValue
+            kayitTusuAltMenu.addItem(oge)
+        }
+
+        kayitTusuOgesi = NSMenuItem(
+            title: "Kayıt tuşu: \(KullaniciAyarlari.kayitTusu.ad)", action: nil, keyEquivalent: "")
+        kayitTusuOgesi.submenu = kayitTusuAltMenu
+        menu.addItem(kayitTusuOgesi)
+        kayitTusuMenusunuTazele()
+
+        let kayitTusuAciklama = NSMenuItem(
+            title: "Basılı tut, konuş, bırak", action: nil, keyEquivalent: "")
+        kayitTusuAciklama.isEnabled = false
+        menu.addItem(kayitTusuAciklama)
         menu.addItem(.separator())
 
         llmOgesi = NSMenuItem(
@@ -242,6 +267,27 @@ public final class UygulamaDelegesi: NSObject, NSApplicationDelegate {
     }
 
     private var hazirMi: Bool { modelHazir && mikrofonHazir }
+
+    // MARK: Kayıt tuşu menüsü
+
+    @objc private func kayitTusuSecildi(_ gonderen: NSMenuItem) {
+        guard let ham = gonderen.representedObject as? String, let yeni = KayitTusu(rawValue: ham)
+        else { return }
+        KullaniciAyarlari.kayitTusu = yeni
+        tusDinleyici?.tusuDegistir(yeni)
+        kayitTusuMenusunuTazele()
+        durumYaz("Kayıt tuşu: \(yeni.ad)")
+    }
+
+    private func kayitTusuMenusunuTazele() {
+        let secili = KullaniciAyarlari.kayitTusu
+        kayitTusuOgesi.title = "Kayıt tuşu: \(secili.ad)"
+        for oge in kayitTusuAltMenu.items {
+            guard let ham = oge.representedObject as? String, let tus = KayitTusu(rawValue: ham)
+            else { continue }
+            oge.state = tus == secili ? .on : .off
+        }
+    }
 
     // MARK: Mikrofon izni
 
@@ -653,7 +699,7 @@ public final class UygulamaDelegesi: NSObject, NSApplicationDelegate {
         uyari.alertStyle = .informational
         uyari.messageText = "Listender nasıl çalışır"
         var metin = """
-            Sağ ⌥ tuşuna basılı tutarken mikrofon kaydeder. Bırakınca ses, bu bilgisayardaki Whisper modeliyle yazıya çevrilir ve imlecin olduğu yere yapıştırılır. Ses ve metin bilgisayardan çıkmaz; internet yalnız modelin ilk indirilmesinde gerekir.
+            \(KullaniciAyarlari.kayitTusu.ad) tuşuna basılı tutarken mikrofon kaydeder. Bırakınca ses, bu bilgisayardaki Whisper modeliyle yazıya çevrilir ve imlecin olduğu yere yapıştırılır. Ses ve metin bilgisayardan çıkmaz; internet yalnız modelin ilk indirilmesinde gerekir. Kayıt tuşu menüden değiştirilebilir.
 
             Metin temizliği: "eee, ıı" gibi dolgular her zaman silinir; cümle başındaki "yani, hani, şey, işte" temizlenir; yarım saniyeden kısa basmalar yok sayılır.
 
@@ -694,7 +740,7 @@ public final class UygulamaDelegesi: NSObject, NSApplicationDelegate {
         } else if !mikrofonHazir {
             durumYaz("Mikrofon yok — bağlanınca hazır olur")
         } else {
-            durumYaz("Hazır — sağ ⌥ bas-konuş")
+            durumYaz("Hazır — \(KullaniciAyarlari.kayitTusu.ad) bas-konuş")
         }
     }
 

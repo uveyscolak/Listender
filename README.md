@@ -1,8 +1,10 @@
 # Listender
 
 Wispr Flow'un tamamen yerel Türkçe dikte klonu. macOS menü çubuğunda yaşar.
-**Sağ Option (⌥)** tuşuna basılı tut, konuş, bırak — söylediğin metin aktif
-uygulamanın imlecine yazılır. **Ses bilgisayardan hiç çıkmaz**, internet gerekmez.
+Varsayılan sağ Option (⌥), menüden Kayıt tuşu bölümünden değiştirilebilir
+(sol/sağ Control, Option, Command, Shift). Seçili tuşa basılı tut, konuş,
+bırak — söylediğin metin aktif uygulamanın imlecine yazılır. **Ses
+bilgisayardan hiç çıkmaz**, internet gerekmez.
 
 Native Swift uygulaması. Whisper large-v3-turbo modelini WhisperKit üzerinden
 Apple Silicon'ın Neural Engine'inde koşturur.
@@ -31,7 +33,7 @@ Sistem Ayarları, Gizlilik ve Güvenlik altında üçü de gerekli:
 
 | İzin | Ne için |
 |---|---|
-| **Giriş İzleme** | Sağ ⌥ tuşunu duymak |
+| **Giriş İzleme** | Kayıt tuşunu duymak |
 | **Erişilebilirlik** | Metni imlecin olduğu yere yazmak |
 | **Mikrofon** | Sesi yakalamak (ilk kayıtta macOS kendisi sorar) |
 
@@ -53,7 +55,7 @@ Menü çubuğundaki ikon durumu gösterir:
 
 | İkon | Anlamı |
 |---|---|
-| 🎙️ | Hazır — sağ ⌥ ile bas-konuş |
+| 🎙️ | Hazır — kayıt tuşu ile bas-konuş |
 | 🔴 | Kayıt sürüyor |
 | ✍️ | Yazıya çevriliyor |
 | ⏳ | Model hazırlanıyor |
@@ -61,6 +63,13 @@ Menü çubuğundaki ikon durumu gösterir:
 
 Yarım saniyeden kısa basmalar yok sayılır (yanlışlıkla basma filtresi). Tuşa
 basmadan önceki yarım saniye de kayda girer, böylece ilk hece yutulmaz.
+
+## Kayıt tuşunu değiştirme
+
+Menü çubuğu ikonuna tıklayıp "Kayıt tuşu: …" alt menüsünden sol/sağ Control,
+Option, Command veya Shift'ten birini seçebilirsin. Seçim anında geçerli olur,
+uygulamayı yeniden başlatman gerekmez, ve bir sonraki açılışta da korunur.
+fn tuşu listede yok çünkü macOS onu kendi dikte kısayolu için kullanıyor.
 
 ## Metin temizliği
 
@@ -107,7 +116,7 @@ Ses normalde hiçbir aşamada diske yazılmaz. Tek istisna teşhis: konuşma duy
 
 ## Sorun giderme
 
-**Sistem Ayarları'nda izinler açık ama sağ ⌥ çalışmıyor.** Uygulamanın imzası
+**Sistem Ayarları'nda izinler açık ama kayıt tuşu çalışmıyor.** Uygulamanın imzası
 değişmiş, macOS'un izin kaydı eskide kalmış demektir. Kurulum script'i bunu
 kendisi yakalar; elle kurduysanız:
 

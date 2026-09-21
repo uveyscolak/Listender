@@ -1,11 +1,14 @@
 import AppKit
 import CoreGraphics
 
-/// Global sağ Option (⌥) dinleyicisi — CGEventTap.
+/// Global değiştirici tuş dinleyicisi — CGEventTap.
 ///
-/// Bas-konuş tetikleyicisi. Sağ ⌥ değiştirici tuş olduğu için normal tuş
-/// olayları değil `.flagsChanged` olayları izlenir; hangi tuşun değiştiğini
-/// tuş kodundan anlarız (sağ ⌥ = 61, sol ⌥ = 58 — sol tuşa tepki verilmez).
+/// Bas-konuş tetikleyicisi. Seçili tuş bir değiştirici (Control/Option/
+/// Command/Shift, sol veya sağ) olduğu için normal tuş olayları değil
+/// `.flagsChanged` olayları izlenir; hangi tuşun değiştiğini tuş kodundan
+/// anlarız (bkz. `KayitTusu.tusKodu` — sol/sağ ayrımı cihaza özel bit
+/// maskesiyle yapılır, `.maskAlternate` gibi genel maskeler iki tarafı
+/// ayırmaz).
 ///
 /// Bu tap **Giriş İzleme** ve **Erişilebilirlik** izni ister. İzin yoksa tap kurulamaz.
 ///
@@ -16,12 +19,6 @@ import CoreGraphics
 /// kapatıyordu (`tapDisabledByTimeout`), kod bunu yakalayıp yeniden açıyordu
 /// ama kapalı olduğu pencerede basılan tuş kayboluyordu.
 public final class TusDinleyici {
-
-    /// Sağ Option'ın sanal tuş kodu (kVK_RightOption).
-    private static let sagOptionKodu: Int64 = 61
-
-    /// NX_DEVICERALTKEYMASK: bu bit sağ Option'a özel, .maskAlternate iki tuşu ayırmıyor.
-    private static let sagOptionBiti: UInt64 = 0x40
 
     private let basildi: () -> Void
     private let birakildi: () -> Void
@@ -35,12 +32,18 @@ public final class TusDinleyici {
     private var kaynak: CFRunLoopSource?
     private var basiliMi = false
 
+    /// Seçili kayıt tuşu. Tap kendi thread'inde okur, `tusuDegistir(_:)` ana
+    /// thread'den yazar — ikisi arasında `kilit` korur.
+    private var tus: KayitTusu
+    private let kilit = NSLock()
+
     private var thread: Thread?
     private var thredRunLoop: CFRunLoop?
     private var guvenlikAgiZamanlayici: CFRunLoopTimer?
     private var ustUsteKapali = 0
 
-    public init(basildi: @escaping () -> Void, birakildi: @escaping () -> Void) {
+    public init(tus: KayitTusu, basildi: @escaping () -> Void, birakildi: @escaping () -> Void) {
+        self.tus = tus
         self.basildi = basildi
         self.birakildi = birakildi
     }
@@ -125,7 +128,24 @@ public final class TusDinleyici {
         hazir.wait()
         thread = yeniThread
 
-        Gunluk.yaz("tuş dinleyicisi kuruldu (sağ ⌥, ayrı thread)")
+        Gunluk.yaz("tuş dinleyicisi kuruldu (\(guncelTus().ad), ayrı thread)")
+    }
+
+    /// Tap'i yeniden kurmadan kayıt tuşunu değiştirir. Tuş değişince yarım
+    /// kalmış bir basış ("eski tuş basılıyken değiştirildi") kayıt açık
+    /// bırakmasın diye `basiliMi` sıfırlanır.
+    public func tusuDegistir(_ yeni: KayitTusu) {
+        kilit.lock()
+        tus = yeni
+        kilit.unlock()
+        basiliMi = false
+        Gunluk.yaz("kayıt tuşu değişti: \(yeni.ad)")
+    }
+
+    private func guncelTus() -> KayitTusu {
+        kilit.lock()
+        defer { kilit.unlock() }
+        return tus
     }
 
     public func dur() {
@@ -154,12 +174,13 @@ public final class TusDinleyici {
             Gunluk.yaz("tuş dinleyicisi sistem tarafından kapatılmıştı, yeniden açıldı")
             return
         }
+        let seciliTus = guncelTus()
         guard tur == .flagsChanged,
-              olay.getIntegerValueField(.keyboardEventKeycode) == Self.sagOptionKodu
+              olay.getIntegerValueField(.keyboardEventKeycode) == seciliTus.tusKodu
         else { return }
 
         // Bayrak duruyorsa basıldı, kalktıysa bırakıldı.
-        let simdiBasili = (olay.flags.rawValue & Self.sagOptionBiti) != 0
+        let simdiBasili = (olay.flags.rawValue & seciliTus.bayrakBiti) != 0
         guard simdiBasili != basiliMi else { return }
         basiliMi = simdiBasili
 

@@ -2,6 +2,8 @@ import Foundation
 
 /// Merkezi ayarlar ve sabitler. Python sürümündeki `config.py`'nin karşılığı;
 /// ölçülmüş değerler (eşikler, model tercihi, prompt) birebir korundu.
+///
+/// Kullanıcının menüden değiştirdiği, kalıcı ayarlar için `KullaniciAyarlari` kullanılır.
 public enum Ayarlar {
 
     // MARK: Model

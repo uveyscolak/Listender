@@ -224,6 +224,7 @@ private func tarafEki(sol: Bool, sag: Bool) -> String {
 // (klavye farkı). Terminal'den çalıştırılır; izin Terminal'e sorulur.
 if CommandLine.arguments.dropFirst().first == "listender-tus-testi" {
     let saniye = Double(CommandLine.arguments.dropFirst(2).first ?? "15") ?? 15
+    let seciliTus = KullaniciAyarlari.kayitTusu
 
     let geriCagri: CGEventTapCallBack = { _, tur, olay, _ in
         if tur == .tapDisabledByTimeout || tur == .tapDisabledByUserInput {
@@ -251,10 +252,10 @@ if CommandLine.arguments.dropFirst().first == "listender-tus-testi" {
                                          sag: ham & NX_DEVICERSHIFTKEYMASK != 0))
         }
         if bayraklar.contains(.maskSecondaryFn) { adlar.append("fn") }
-        let bilinen: String
+        var bilinen: String
         switch kod {
         case 58: bilinen = "sol ⌥"
-        case 61: bilinen = "SAĞ ⌥  ← uygulamanın beklediği tuş"
+        case 61: bilinen = "sağ ⌥"
         case 55: bilinen = "sol ⌘"
         case 54: bilinen = "sağ ⌘"
         case 59: bilinen = "sol ⌃"
@@ -264,10 +265,15 @@ if CommandLine.arguments.dropFirst().first == "listender-tus-testi" {
         case 63: bilinen = "fn"
         default: bilinen = "?"
         }
+        // Seçili kayıt tuşu her olayda taze okunur: KullaniciAyarlari statik bir
+        // erişim, C fonksiyon işaretçisine çevrilen kapatmanın (closure) bağlam
+        // yakalaması sayılmaz — bu yüzden burada doğrudan kullanılabilir.
+        let seciliTus = KullaniciAyarlari.kayitTusu
+        if kod == seciliTus.tusKodu { bilinen += "  ← uygulamanın beklediği tuş" }
         var satir = "  tuş kodu \(kod)  [\(bilinen)]  bayraklar: \(adlar.isEmpty ? "—" : adlar.joined(separator: " "))"
-        if kod == 61 {
-            let sagOptionBasili = ham & NX_DEVICERALTKEYMASK != 0
-            satir += sagOptionBasili ? "  → uygulama KAYIT BAŞLATIR" : "  → uygulama KAYIT DURDURUR"
+        if kod == seciliTus.tusKodu {
+            let basili = ham & seciliTus.bayrakBiti != 0
+            satir += basili ? "  → uygulama KAYIT BAŞLATIR" : "  → uygulama KAYIT DURDURUR"
         }
         print(satir)
         fflush(stdout)   // dosyaya yönlendirildiğinde tampon beklemesin
@@ -293,7 +299,7 @@ if CommandLine.arguments.dropFirst().first == "listender-tus-testi" {
 
     print("tap kuruldu. \(String(format: "%.0f", saniye)) saniye boyunca")
     print("değiştirici tuşlara (⌥ ⌘ ⌃ ⇧) tek tek basıp bırakın:")
-    print("Sağ ⌥ tuşuna basıp bırakın. Ayrıca sol ⌥ basılıyken sağ ⌥'ye basıp bırakmayı deneyin — ikisi birlikteyken de doğru çalışmalı.\n")
+    print("seçili tuş: \(seciliTus.ad). O tuşa basıp bırakın. Ayrıca zıt taraf basılıyken de deneyin — ikisi birlikteyken de doğru çalışmalı.\n")
     fflush(stdout)
     CFRunLoopRunInMode(.defaultMode, saniye, false)
     print("\nbitti.")
