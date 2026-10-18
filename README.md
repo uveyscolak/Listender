@@ -90,7 +90,7 @@ yapabiliyor ("verdim" yerine "verildi"). Bilinçli olarak açılır.
 
 ```bash
 swift build -c release
-swift test                                              # 25 test, 9 suite
+swift test                                              # 44 test, 15 suite
 .build/release/Listender listender-temizlik-smoke       # temizlik hattı
 .build/release/Listender listender-ses-testi ses.wav    # model + transkript
 ./scripts/make-app.sh                                   # /Applications'a paketle
